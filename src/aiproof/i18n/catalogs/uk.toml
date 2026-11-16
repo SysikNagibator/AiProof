@@ -1,0 +1,21 @@
+# AiProof by SYSIK — Ukrainian catalog (DRAFT, machine-translated).
+tagline = "Агент каже «готово». AiProof перевіряє докази."
+
+[meta]
+language = "uk"
+reviewed = false
+
+
+[menu]
+dashboard = "Панель"
+sessions = "Сесії"
+checks = "Перевірки"
+secrets = "Секрети"
+settings = "Налаштування"
+doctor = "Діагностика"
+about = "Про програму"
+exit = "Вихід"
+
+[gate.block]
+tests_mismatch = "Ти заявив, що проходять {claimed} тестів, але останній запуск показав {found}."
+secrets = "У дифі знайдено секрет(и): {detail}."

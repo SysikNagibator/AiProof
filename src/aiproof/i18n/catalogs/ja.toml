@@ -1,0 +1,21 @@
+# AiProof by SYSIK — Japanese catalog (DRAFT, machine-translated).
+tagline = "エージェントは「完了」と言う。AiProof が証拠を確認します。"
+
+[meta]
+language = "ja"
+reviewed = false
+
+
+[menu]
+dashboard = "ダッシュボード"
+sessions = "セッション"
+checks = "チェック"
+secrets = "シークレット"
+settings = "設定"
+doctor = "診断"
+about = "情報"
+exit = "終了"
+
+[gate.block]
+tests_mismatch = "{claimed} 件のテストが通ると主張しましたが、直近の実行は {found} 件でした。"
+secrets = "diff にシークレットがあります: {detail}。"

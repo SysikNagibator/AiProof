@@ -1,0 +1,21 @@
+# AiProof by SYSIK — Brazilian Portuguese catalog (DRAFT, machine-translated).
+tagline = "O agente diz pronto. AiProof confere as provas."
+
+[meta]
+language = "pt_br"
+reviewed = false
+
+
+[menu]
+dashboard = "Painel"
+sessions = "Sessões"
+checks = "Verificações"
+secrets = "Segredos"
+settings = "Configurações"
+doctor = "Diagnóstico"
+about = "Sobre"
+exit = "Sair"
+
+[gate.block]
+tests_mismatch = "Você afirmou que {claimed} testes passam, mas a última execução mostrou {found}."
+secrets = "Segredo(s) encontrado(s) no diff: {detail}."

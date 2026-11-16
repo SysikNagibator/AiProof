@@ -1,0 +1,21 @@
+# AiProof by SYSIK — Spanish catalog (DRAFT, machine-translated).
+tagline = "El agente dice listo. AiProof comprueba las pruebas."
+
+[meta]
+language = "es"
+reviewed = false
+
+
+[menu]
+dashboard = "Panel"
+sessions = "Sesiones"
+checks = "Comprobaciones"
+secrets = "Secretos"
+settings = "Ajustes"
+doctor = "Diagnóstico"
+about = "Acerca de"
+exit = "Salir"
+
+[gate.block]
+tests_mismatch = "Afirmaste que pasan {claimed} pruebas, pero la última ejecución mostró {found}."
+secrets = "Se encontraron secretos en el diff: {detail}."

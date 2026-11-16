@@ -1,0 +1,21 @@
+# AiProof by SYSIK — German catalog (DRAFT, machine-translated).
+tagline = "Der Agent sagt fertig. AiProof prüft die Belege."
+
+[meta]
+language = "de"
+reviewed = false
+
+
+[menu]
+dashboard = "Übersicht"
+sessions = "Sitzungen"
+checks = "Prüfungen"
+secrets = "Geheimnisse"
+settings = "Einstellungen"
+doctor = "Diagnose"
+about = "Über"
+exit = "Beenden"
+
+[gate.block]
+tests_mismatch = "Du behauptest {claimed} bestandene Tests, der letzte Lauf zeigte aber {found}."
+secrets = "Geheimnis(se) im Diff gefunden: {detail}."

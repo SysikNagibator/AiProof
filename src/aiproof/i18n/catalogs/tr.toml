@@ -1,0 +1,21 @@
+# AiProof by SYSIK — Turkish catalog (DRAFT, machine-translated).
+tagline = "Ajan bitti diyor. AiProof kanıtları kontrol eder."
+
+[meta]
+language = "tr"
+reviewed = false
+
+
+[menu]
+dashboard = "Panel"
+sessions = "Oturumlar"
+checks = "Kontroller"
+secrets = "Sırlar"
+settings = "Ayarlar"
+doctor = "Tanılama"
+about = "Hakkında"
+exit = "Çıkış"
+
+[gate.block]
+tests_mismatch = "{claimed} testin geçtiğini iddia ettin ama son çalışma {found} gösterdi."
+secrets = "Diff'te sır bulundu: {detail}."

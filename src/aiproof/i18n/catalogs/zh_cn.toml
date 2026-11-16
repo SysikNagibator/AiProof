@@ -1,0 +1,21 @@
+# AiProof by SYSIK — Simplified Chinese catalog (DRAFT, machine-translated).
+tagline = "代理说完成了。AiProof 核对证据。"
+
+[meta]
+language = "zh_cn"
+reviewed = false
+
+
+[menu]
+dashboard = "面板"
+sessions = "会话"
+checks = "检查"
+secrets = "密钥"
+settings = "设置"
+doctor = "诊断"
+about = "关于"
+exit = "退出"
+
+[gate.block]
+tests_mismatch = "你声称有 {claimed} 个测试通过，但上次运行显示 {found} 个。"
+secrets = "在 diff 中发现密钥：{detail}。"

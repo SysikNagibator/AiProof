@@ -1,0 +1,21 @@
+# AiProof by SYSIK — French catalog (DRAFT, machine-translated).
+tagline = "L'agent dit terminé. AiProof vérifie les preuves."
+
+[meta]
+language = "fr"
+reviewed = false
+
+
+[menu]
+dashboard = "Tableau de bord"
+sessions = "Sessions"
+checks = "Vérifications"
+secrets = "Secrets"
+settings = "Paramètres"
+doctor = "Diagnostic"
+about = "À propos"
+exit = "Quitter"
+
+[gate.block]
+tests_mismatch = "Tu as annoncé {claimed} tests réussis, mais la dernière exécution en montre {found}."
+secrets = "Secret(s) trouvé(s) dans le diff : {detail}."

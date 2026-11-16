@@ -1,0 +1,92 @@
+# AiProof by SYSIK — Russian catalog (native quality).
+tagline = "Агент говорит «готово». AiProof проверяет доказательства."
+
+[meta]
+language = "ru"
+reviewed = true
+
+
+[menu]
+dashboard = "Панель"
+live_feed = "Живой поток"
+sessions = "Сессии"
+checks = "Проверки"
+secrets = "Секреты"
+rules = "Правила и правки"
+settings = "Настройки"
+doctor = "Диагностика"
+logs = "Журнал"
+update = "Проверить обновления"
+about = "О программе"
+exit = "Выход"
+
+[status]
+armed = "защищено"
+disarmed = "выключено"
+paused = "пауза"
+tampered = "подмена"
+degraded = "частично"
+mode = "режим: {mode}"
+agent = "агент: {agent}"
+project = "проект: {project}"
+last_session = "последняя сессия: {verdict}"
+
+[gate]
+header = "AiProof проверил утверждения и нашёл проблемы:"
+footer = "Исправь это, затем запусти полную тестовую команду и укажи точные числа."
+
+[gate.block]
+tests_mismatch = "Ты заявил, что проходят {claimed} тестов, но последний запуск показал {found}."
+tests_not_run = "Ты заявил, что тесты проходят, но команда тестов в этой сессии не запускалась."
+commit_missing = "Ты заявил о коммите, но подходящего коммита в текущей ветке нет."
+file_unchanged = "Ты заявил, что {file} изменён, но файл совпадает с состоянием на старте сессии."
+tamper_tests = "Обнаружена подмена тестов: {detail}"
+secrets = "В диффе найден секрет(ы): {detail}. Смени ключ и не коммить его в репозиторий."
+todo = "Задачи/TODO удалены вместо выполнения: {detail}"
+config = "Защищённая конфигурация изменена во время сессии: {detail}"
+unknown = "Не удалось подтвердить утверждение: {detail}"
+rule = "Нарушено правило из записанной правки: {detail}"
+
+[cli]
+version = "AiProof {version} by SYSIK"
+init_done = "AiProof инициализирован для {project}."
+already_init = "AiProof уже инициализирован для {project}."
+uninstall_done = "Хуки AiProof удалены."
+status_armed = "AiProof защищает проект (режим: {mode})."
+not_a_repo = "Не git-репозиторий: {path}"
+dry_run = "(пробный запуск — ничего не записано)"
+
+[doctor]
+ok = "ОК"
+warn = "ВНИМАНИЕ"
+fail = "ОШИБКА"
+fix_hint = "как исправить: {hint}"
+
+[exit]
+keys = "W/S — навигация · Enter — открыть · Q — выход · L — язык · T — тема · ? — справка"
+
+[about]
+license = "Лицензия MIT, Copyright (c) SYSIK"
+
+[learn]
+agents_md_title = "Правила AiProof (применяются)"
+agents_md_intro = "Эти правила проверяет AiProof. Соблюдай их в этом репозитории."
+agents_md_none = "Пока нет включённых правил."
+agents_md_footer = "Сгенерировано AiProof. Меняй только вне маркеров."
+
+[count]
+sessions = "{n} сессий"
+claims = "{n} утверждений"
+findings = "{n} находок"
+
+[plural.sessions]
+one = "{n} сессия"
+few = "{n} сессии"
+many = "{n} сессий"
+other = "{n} сессий"
+
+[plural.claims]
+one = "{n} утверждение"
+few = "{n} утверждения"
+many = "{n} утверждений"
+other = "{n} утверждений"

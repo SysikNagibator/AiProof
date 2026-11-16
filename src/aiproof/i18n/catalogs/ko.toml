@@ -1,0 +1,21 @@
+# AiProof by SYSIK — Korean catalog (DRAFT, machine-translated).
+tagline = "에이전트는 완료라고 말합니다. AiProof가 증거를 확인합니다."
+
+[meta]
+language = "ko"
+reviewed = false
+
+
+[menu]
+dashboard = "대시보드"
+sessions = "세션"
+checks = "검사"
+secrets = "시크릿"
+settings = "설정"
+doctor = "진단"
+about = "정보"
+exit = "종료"
+
+[gate.block]
+tests_mismatch = "{claimed}개 테스트가 통과한다고 주장했지만 마지막 실행은 {found}개였습니다."
+secrets = "diff에서 시크릿을 발견했습니다: {detail}."

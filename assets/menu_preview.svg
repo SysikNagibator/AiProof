@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AiProof by SYSIK - TUI menu preview (illustrative, matches the green theme).
+  This is a static mock of the dashboard; the real UI is rendered by rich (docs/TUI.md).
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="560" viewBox="0 0 900 560"
+     role="img" aria-label="AiProof TUI menu preview">
+  <style>
+    .mono { font-family: "SFMono-Regular", Menlo, Consolas, "DejaVu Sans Mono", monospace; }
+    .dim  { fill: #6b7a70; }
+    .ok   { fill: #5ef08a; }
+    .warn { fill: #e6b450; }
+    .fg   { fill: #d7e6dc; }
+    .accent { fill: #8affab; }
+    .card { fill: #0b1a12; stroke: #1d5c33; }
+  </style>
+
+  <rect width="900" height="560" fill="#07120c"/>
+
+  <!-- header card -->
+  <rect class="card" x="24" y="24" width="852" height="132" rx="14" stroke-width="1.5"/>
+  <text class="mono" x="48" y="64" font-size="30" font-weight="700" class="accent">AIPROOF</text>
+  <text class="mono" x="48" y="92" font-size="14" class="dim">The agent says done. AiProof checks the receipts.</text>
+  <text class="mono" x="48" y="126" font-size="14">
+    <tspan class="ok">● armed</tspan>
+    <tspan class="dim">   mode: </tspan><tspan class="fg">enforce</tspan>
+    <tspan class="dim">   agent: </tspan><tspan class="fg">claude-code</tspan><tspan class="ok"> ✓</tspan>
+    <tspan class="dim">   project: </tspan><tspan class="fg">my-app</tspan>
+    <tspan class="dim">   lang: </tspan><tspan class="fg">EN</tspan>
+  </text>
+  <text class="mono" x="48" y="146" font-size="14">
+    <tspan class="dim">last session: </tspan><tspan class="ok">✓ verified</tspan>
+    <tspan class="dim">   pinned: </tspan><tspan class="ok">ok</tspan>
+    <tspan class="dim">   ledger: </tspan><tspan class="ok">chain OK</tspan>
+  </text>
+
+  <!-- menu -->
+  <text class="mono" x="48" y="200" font-size="16" class="accent">❯</text>
+  <text class="mono" x="72" y="200" font-size="16" class="fg">1  Dashboard</text>
+  <text class="mono" x="260" y="200" font-size="13" class="dim">status, agent, ledger</text>
+
+  <text class="mono" x="72" y="228" font-size="16" class="fg">2  Live feed</text>
+  <text class="mono" x="260" y="228" font-size="13" class="dim">real-time events</text>
+
+  <text class="mono" x="72" y="256" font-size="16" class="fg">3  Sessions</text>
+  <text class="mono" x="260" y="256" font-size="13" class="dim">past sessions</text>
+
+  <text class="mono" x="72" y="284" font-size="16" class="fg">4  Checks</text>
+  <text class="mono" x="260" y="284" font-size="13" class="dim">strictness and toggles</text>
+
+  <text class="mono" x="72" y="312" font-size="16" class="fg">5  Secrets</text>
+  <text class="mono" x="260" y="312" font-size="13" class="dim">scan and redact</text>
+
+  <text class="mono" x="72" y="340" font-size="16" class="fg">6  Rules &amp; Corrections</text>
+  <text class="mono" x="260" y="340" font-size="13" class="dim">corrections and learned rules</text>
+
+  <text class="mono" x="72" y="368" font-size="16" class="fg">7  Settings</text>
+  <text class="mono" x="260" y="368" font-size="13" class="dim">language, theme, agents</text>
+
+  <text class="mono" x="72" y="404" font-size="16" class="fg">8  Doctor</text>
+  <text class="mono" x="260" y="404" font-size="13" class="dim">install integrity</text>
+
+  <text class="mono" x="72" y="432" font-size="16" class="fg">9  Logs</text>
+  <text class="mono" x="260" y="432" font-size="13" class="dim">aiproof.log</text>
+
+  <text class="mono" x="72" y="460" font-size="16" class="fg">10 Check updates</text>
+  <text class="mono" x="260" y="460" font-size="13" class="dim">GitHub releases</text>
+
+  <text class="mono" x="72" y="488" font-size="16" class="fg">11 About</text>
+  <text class="mono" x="260" y="488" font-size="13" class="dim">version and license</text>
+
+  <text class="mono" x="72" y="516" font-size="16" class="fg">12 Exit</text>
+
+  <!-- footer -->
+  <text class="mono" x="48" y="548" font-size="12" class="dim">
+    W/S move  ·  Enter open  ·  L lang  ·  T theme  ·  ? help  ·  Q quit
+  </text>
+</svg>
