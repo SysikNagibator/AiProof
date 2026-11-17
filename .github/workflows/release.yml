@@ -12,8 +12,9 @@ jobs:
   build-binaries:
     name: build (${{ matrix.artifact }})
     runs-on: ${{ matrix.os }}
-    # Some runners (arm64 Linux, Intel macOS) are not available on every plan.
-    # A missing leg degrades gracefully: npm tells the user to install with pipx.
+    # Some runners (arm64 Linux, macOS) are not available on every plan or may sit in the
+    # queue for a long time. A missing leg degrades gracefully: the npm wrapper and the
+    # README point macOS users at the wheel/pipx instead of a binary.
     continue-on-error: ${{ matrix.experimental || false }}
     strategy:
       fail-fast: false
@@ -29,6 +30,7 @@ jobs:
             experimental: true
           - os: macos-14
             artifact: AiProof_macOS_arm64
+            experimental: true
           - os: windows-latest
             artifact: AiProof_Win_x64
     steps:

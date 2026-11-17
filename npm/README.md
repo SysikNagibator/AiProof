@@ -22,9 +22,10 @@ aiproof --version      # AiProof 0.1.0 by SYSIK
 * `bin/aiproof.js` is the launcher. It executes the verified binary under `vendor/`, or falls
   back to a system `aiproof` (e.g. installed with `pipx`) if the download was skipped.
 
-Published binaries: Linux x64, Linux arm64, macOS x64, macOS arm64 and Windows x64. Windows
-arm64 is **not** built yet; the installer then prints a clear message and leaves a system
-`aiproof` usable.
+Published binaries on the v0.1.0 release: Linux x64, Linux arm64 and Windows x64. macOS x64 /
+arm64 builds run only when GitHub provides a macOS runner (they were not available for v0.1.0),
+so macOS users should install from the wheel or `pipx`. Windows arm64 is **not** built yet; the
+installer then prints a clear message and leaves a system `aiproof` usable.
 
 ## Configuration
 

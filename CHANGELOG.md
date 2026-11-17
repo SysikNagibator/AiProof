@@ -55,6 +55,13 @@ All notable changes to AiProof are documented here. This project uses
   with no silent English fallbacks.
 
 ### Fixed
+- **CI never ran.** A colon inside a step name (`i18n catalog report (strict: en/ru …)`) made
+  `.github/workflows/ci.yml` invalid YAML, so every push produced an instantly failed run with
+  zero jobs. The name is quoted-free again and CI executes lint, the 9-cell test matrix and the
+  package job.
+- **Release job could be blocked by a missing macOS runner.** Both macOS matrix legs are now
+  `experimental`, matching the existing Linux arm64 leg, so a queued/cancelled macOS build no
+  longer stops the release from publishing the platforms that did build.
 - **Wheel build was broken.** `[tool.hatch.build.targets.wheel.force-include]` duplicated
   every i18n catalog (`a second file is being added ... de.toml`), so `python -m build` could
   not produce a wheel. The redundant table is gone; the wheel ships all 11 catalogs.

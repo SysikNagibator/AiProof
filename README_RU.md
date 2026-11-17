@@ -137,8 +137,10 @@ git clone https://github.com/SysikNagibator/AiProof.git
 cd AiProof && pip install .
 ```
 
-Готовые single-file бинарники для Linux/macOS/Windows приложены к каждому
-[релизу](https://github.com/SysikNagibator/AiProof/releases) вместе с `SHA256SUMS`.
+Готовые single-file бинарники для **Linux x64, Linux arm64 и Windows x64** приложены к
+каждому [релизу](https://github.com/SysikNagibator/AiProof/releases) вместе с `SHA256SUMS`.
+Бинарники для macOS собираются релизным workflow только когда доступен macOS-раннер; в этом
+релизе используйте wheel или команду `pipx` выше.
 
 > **О названии CLI.** Команда — `aiproof`. На PyPI уже занят несвязанный пакет с именем
 > `aiproof`, поэтому мы публикуемся как **`aiproof-sysik`**. См.

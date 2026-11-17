@@ -136,8 +136,10 @@ git clone https://github.com/SysikNagibator/AiProof.git
 cd AiProof && pip install .
 ```
 
-Prebuilt single-file binaries for Linux/macOS/Windows are attached to each
-[release](https://github.com/SysikNagibator/AiProof/releases) with `SHA256SUMS`.
+Prebuilt single-file binaries for **Linux x64, Linux arm64 and Windows x64** are attached to
+each [release](https://github.com/SysikNagibator/AiProof/releases) with `SHA256SUMS`. macOS
+binaries are built by the release workflow only when a macOS runner is available; on this
+release use the wheel or the `pipx` command above.
 
 > **Note on the CLI name.** The command is `aiproof`. PyPI already has an unrelated package
 > literally named `aiproof`, so ours will be **`aiproof-sysik`** once published. See
