@@ -1,5 +1,9 @@
 # AiProof by SYSIK
 
+<p align="center">
+  <img src="https://files.catbox.moe/q5ewta.png" alt="AiProof by SYSIK — агент говорит «готово», AiProof проверяет доказательства" width="100%">
+</p>
+
 > **Агент говорит «готово». AiProof проверяет доказательства.**
 
 AiProof — локальный офлайн-слой **проверки утверждений ИИ-агентов**. Он следит за тем, что

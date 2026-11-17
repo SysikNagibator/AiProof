@@ -1,5 +1,9 @@
 # AiProof by SYSIK
 
+<p align="center">
+  <img src="https://files.catbox.moe/q5ewta.png" alt="AiProof by SYSIK — the agent says done, AiProof checks the receipts" width="100%">
+</p>
+
 > **The agent says "done". AiProof checks the receipts.**
 
 AiProof is a local, offline **verification layer for AI coding agents**. It watches what an
