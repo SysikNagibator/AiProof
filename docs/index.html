@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AiProof by SYSIK — the agent says "done". AiProof checks the receipts.</title>
+<meta name="description" content="AiProof is a local, offline verification layer for AI coding agents. It matches the agent's claims against real evidence (git, test output, files, ledger) and blocks a false 'done'.">
+<meta property="og:title" content="AiProof by SYSIK">
+<meta property="og:description" content="The agent says done. AiProof checks the receipts. Offline verification for AI coding agents.">
+<meta property="og:image" content="https://files.catbox.moe/q5ewta.png">
+<meta property="og:type" content="website">
+<style>
+  :root {
+    --bg: #0a0c0a;
+    --panel: #111511;
+    --line: #222a22;
+    --fg: #dfe8df;
+    --muted: #8b9a8b;
+    --green: #4ade80;
+    --green-dim: #1f7a45;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: radial-gradient(1200px 600px at 50% -10%, #142014 0%, var(--bg) 60%);
+    color: var(--fg);
+    font: 16px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  a { color: var(--green); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 20px; }
+  header { padding: 40px 0 10px; text-align: center; }
+  header .poster {
+    display: block; width: 100%; height: auto; border-radius: 14px;
+    border: 1px solid var(--line); box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  }
+  h1 { font-size: clamp(28px, 5vw, 44px); margin: 28px 0 6px; letter-spacing: -.02em; }
+  h1 .by { color: var(--muted); font-weight: 400; }
+  .tagline { font-size: clamp(17px, 2.4vw, 21px); color: var(--green); margin: 0 0 10px; }
+  .sub { color: var(--muted); max-width: 720px; margin: 0 auto; }
+  .badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin: 22px 0 6px; }
+  .badge {
+    font: 12px/1 var(--mono); color: var(--muted); border: 1px solid var(--line);
+    padding: 7px 10px; border-radius: 999px; background: var(--panel);
+  }
+  .badge b { color: var(--green); font-weight: 600; }
+  section { margin: 56px 0; }
+  h2 { font-size: 22px; margin: 0 0 16px; letter-spacing: -.01em; }
+  h2::before { content: "› "; color: var(--green); }
+  pre {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px 18px; overflow-x: auto; font: 13.5px/1.7 var(--mono); color: #cfe6cf;
+  }
+  pre .c { color: var(--muted); }
+  code { font-family: var(--mono); font-size: .92em; }
+  p code, li code { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 1px 5px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .card .n { font: 700 26px/1.2 var(--mono); color: var(--green); }
+  .card .l { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 13px; }
+  td:first-child { color: var(--muted); }
+  .yes { color: var(--green); font-weight: 600; }
+  .no { color: #f08a8a; }
+  .note {
+    border-left: 3px solid var(--green-dim); background: var(--panel);
+    padding: 12px 16px; border-radius: 0 10px 10px 0; color: var(--muted); font-size: 14px;
+  }
+  ul.links { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px; }
+  ul.links li a { display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 11px 14px; }
+  ul.links li a:hover { border-color: var(--green-dim); text-decoration: none; }
+  footer { color: var(--muted); text-align: center; font-size: 13px; padding: 30px 0 60px; border-top: 1px solid var(--line); margin-top: 60px; }
+  @media (max-width: 640px) {
+    table { font-size: 12.5px; }
+    th, td { padding: 8px 6px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <img class="poster" src="assets/poster.png" alt="AiProof by SYSIK — the agent says done, AiProof checks the receipts">
+  <h1>AiProof <span class="by">by SYSIK</span></h1>
+  <p class="tagline">The agent says “done”. AiProof checks the receipts.</p>
+  <p class="sub">A local, offline verification layer for AI coding agents. It matches what the agent
+  <em>claims</em> against real evidence — git, test output, files, the hash-chained ledger — and blocks
+  a false “I'm finished” at the Stop hook.</p>
+  <div class="badges">
+    <span class="badge">v<b>0.1.0</b></span>
+    <span class="badge"><b>offline</b> · no telemetry</span>
+    <span class="badge"><b>307</b> tests · 89% coverage</span>
+    <span class="badge">MIT <b>© SYSIK</b></span>
+  </div>
+</header>
+
+<section>
+  <h2>Install</h2>
+  <p class="note">Not on PyPI/npm yet (verified 2026-11-17). Install from the GitHub tag or the
+  release wheel. Do <strong>not</strong> run <code>pipx install aiproof-sysik</code> — that package does not exist.</p>
+<pre><span class="c"># recommended: isolated CLI pinned to the release tag</span>
+pipx install "git+https://github.com/SysikNagibator/AiProof.git@v0.1.0"
+
+<span class="c"># or the wheel from the release page</span>
+pip install https://github.com/SysikNagibator/AiProof/releases/download/v0.1.0/aiproof_sysik-0.1.0-py3-none-any.whl
+
+<span class="c"># then, inside your project</span>
+aiproof init      <span class="c"># install hooks, freeze pinned settings, start the ledger</span>
+aiproof doctor    <span class="c"># verify the install</span>
+aiproof tui       <span class="c"># dashboard</span></pre>
+</section>
+
+<section>
+  <h2>Verified numbers, not marketing</h2>
+  <div class="grid">
+    <div class="card"><div class="n">96%</div><div class="l">detection — 24/25 positives; the one miss is documented</div></div>
+    <div class="card"><div class="n">0%</div><div class="l">false positives — 6/6 benign scenarios allowed</div></div>
+    <div class="card"><div class="n">~70 ms</div><div class="l">median hook latency over 31 scenarios</div></div>
+    <div class="card"><div class="n">11</div><div class="l">languages for claim parsing and the UI</div></div>
+  </div>
+  <p style="color:var(--muted);font-size:14px;margin-top:14px">Verdicts are deterministic;
+  timings depend on the host. Reproduce with <code>aiproof bench --json</code>.</p>
+</section>
+
+<section>
+  <h2>How it differs</h2>
+  <table>
+    <tr><th></th><th>AiProof</th><th>isitdone</th><th>agent-guard-hooks</th></tr>
+    <tr><td>runs your test/lint suite</td><td class="no">no — checks claims</td><td class="yes">yes</td><td>partly</td></tr>
+    <tr><td>verifies claim wording vs evidence</td><td class="yes">yes</td><td>no</td><td>no</td></tr>
+    <tr><td>protects its own settings from the agent</td><td class="yes">yes</td><td>no</td><td>partly</td></tr>
+    <tr><td>learned rules + git backtest</td><td class="yes">yes</td><td>no</td><td>no</td></tr>
+    <tr><td>offline, zero-LLM, no telemetry</td><td class="yes">yes</td><td class="yes">yes</td><td class="yes">yes</td></tr>
+  </table>
+  <p class="note" style="margin-top:14px">They compose: let isitdone run the suite, let AiProof verify
+  the claims and keep the guard config tamper-evident. Facts checked 2026-11-17 against each project's
+  own docs. We found no verifiable AI-agent verification project named Calx or Reflex and do not invent one.</p>
+</section>
+
+<section>
+  <h2>Read more</h2>
+  <ul class="links">
+    <li><a href="https://github.com/SysikNagibator/AiProof">Repository</a></li>
+    <li><a href="https://github.com/SysikNagibator/AiProof/releases/tag/v0.1.0">Release v0.1.0</a></li>
+    <li><a href="https://github.com/SysikNagibator/AiProof/blob/main/README.md">README</a></li>
+    <li><a href="https://github.com/SysikNagibator/AiProof/blob/main/docs/BENCH.md">Benchmark</a></li>
+    <li><a href="https://github.com/SysikNagibator/AiProof/blob/main/docs/AGENTS_SUPPORT.md">Supported agents</a></li>
+    <li><a href="https://github.com/SysikNagibator/AiProof/blob/main/docs/THREAT_MODEL.md">Threat model</a></li>
+  </ul>
+</section>
+
+<footer>
+  AiProof by SYSIK · MIT License · <a href="https://github.com/SysikNagibator/AiProof">github.com/SysikNagibator/AiProof</a>
+</footer>
+
+</div>
+</body>
+</html>
