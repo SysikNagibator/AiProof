@@ -1,0 +1,75 @@
+name: Publish
+
+# Manual only: publishing is public and permanent, so it never runs on push.
+#
+# PyPI uses OIDC trusted publishing — no long-lived token. One-time setup:
+#   PyPI → Your projects → Publishing → "Add a new pending publisher"
+#     PyPI project name: aiproof-sysik
+#     Owner:             SysikNagibator
+#     Repository:        AiProof
+#     Workflow name:     publish.yml
+#     Environment:       pypi
+#
+# npm needs a granular access token with read/write on `aiproof-sysik`,
+# stored as the repository secret NPM_TOKEN.
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Where to publish"
+        type: choice
+        options: [both, pypi, npm]
+        default: both
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip build twine
+      - run: python -m build
+      - run: python -m twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*
+
+  pypi:
+    name: publish to PyPI
+    if: inputs.target == 'both' || inputs.target == 'pypi'
+    needs: [build]
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write # OIDC trusted publishing
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  npm:
+    name: publish to npm
+    if: inputs.target == 'both' || inputs.target == 'npm'
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: https://registry.npmjs.org
+      - name: publish
+        working-directory: npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
