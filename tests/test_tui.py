@@ -115,3 +115,106 @@ def test_all_screens_render(tmp_path: Path) -> None:
     for screen in RENDERERS:
         output = render(screen, tmp_path, settings, "en", theme, True)
         assert output is not None
+
+
+# --------------------------------------------------------------------------- #
+# state machine (pure) + non-interactive runner
+# --------------------------------------------------------------------------- #
+def test_apply_action_navigation() -> None:
+    from aiproof.tui.app import State, apply_action
+
+    state = State()
+    assert apply_action(state, "up") is False
+    assert state.selected == len(widgets.MENU) - 1
+    assert apply_action(state, "down") is False
+    assert state.selected == 0
+    assert apply_action(state, "end") is False
+    assert state.selected == len(widgets.MENU) - 1
+    assert apply_action(state, "home") is False
+    assert state.selected == 0
+    assert apply_action(state, "bogus") is False
+    assert apply_action(state, "quit") is True
+
+
+def test_apply_action_quick_select_and_bounds() -> None:
+    from aiproof.tui.app import State, apply_action
+
+    state = State()
+    assert apply_action(state, "quick3") is False
+    assert state.selected == 2
+    assert apply_action(state, "quick99") is False
+    assert state.selected == 2
+    assert apply_action(state, "quickx") is False
+    assert state.selected == 2
+    state.screen = "dashboard"
+    assert apply_action(state, "quick4") is False
+    assert state.selected == 2
+
+
+def test_apply_action_screens() -> None:
+    from aiproof.tui.app import State, apply_action
+
+    state = State()
+    assert apply_action(state, "select") is False
+    assert state.screen == widgets.MENU[0][0]
+    # Movement is ignored while a screen is open.
+    before = state.selected
+    assert apply_action(state, "down") is False
+    assert state.selected == before
+    assert apply_action(state, "back") is False
+    assert state.screen is None
+    assert apply_action(state, "back") is False
+
+    state.screen = None
+    state.selected = len(widgets.MENU) - 1
+    assert widgets.MENU[state.selected][0] == "exit"
+    assert apply_action(state, "select") is True
+
+
+def test_apply_action_lang_theme_help() -> None:
+    from aiproof.tui.app import State, apply_action
+
+    state = State(lang="en", theme_name="green")
+    assert apply_action(state, "lang") is False
+    assert state.lang != "en"
+    assert apply_action(state, "theme") is False
+    assert state.theme_name == "mono"
+    assert apply_action(state, "help") is False
+    assert state.help is True
+    assert apply_action(state, "help") is False
+    assert state.help is False
+
+    unknown = State(lang="zz", theme_name="chartreuse")
+    assert apply_action(unknown, "lang") is False
+    assert unknown.lang == "en"
+    assert apply_action(unknown, "theme") is False
+    assert unknown.theme_name == "green"
+
+
+def test_build_and_verdict_helpers(tmp_path: Path, monkeypatch) -> None:
+    from aiproof.ledger.store import LedgerStore
+    from aiproof.tui import app
+
+    monkeypatch.setenv("AIPROOF_DATA_DIR", str(tmp_path / "data"))
+    state = app.State(screen="dashboard")
+    built = app._build(tmp_path, Settings(), state)
+    assert built is not None
+    assert app._verdict_token(tmp_path) == "none"
+    assert app._last_verdict(tmp_path, "en")
+
+    store = LedgerStore(tmp_path)
+    store.append("gate_decision", {"block": True}, session="s1")
+    assert app._verdict_token(tmp_path) == "blocked"
+    assert "blocked" in app._last_verdict(tmp_path, "en").lower()
+    store.append("gate_decision", {"block": False}, session="s1")
+    assert app._verdict_token(tmp_path) == "verified"
+
+
+def test_run_tui_non_tty_prints_static(tmp_path: Path, monkeypatch) -> None:
+    from aiproof.tui import app
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("AIPROOF_DATA_DIR", str(tmp_path / "data"))
+    monkeypatch.setattr("sys.stdin.isatty", lambda: False)
+    monkeypatch.setattr("sys.stdout.isatty", lambda: False)
+    assert app.run_tui() == 0

@@ -56,7 +56,7 @@ def test_strict_blocks_on_unknown(tmp_path: Path) -> None:
     assert decide(ctx).block
 
 
-def test_capped_blocks(tmp_path: Path) -> None:
+def test_capped_stops_blocking(tmp_path: Path) -> None:
     root, head = make_repo(tmp_path)
     ctx = make_ctx(
         root,
@@ -66,7 +66,9 @@ def test_capped_blocks(tmp_path: Path) -> None:
         records=[tool_post("pytest -q", "5 passed")],
     )
     assert not decide(ctx).block
-    assert decide(ctx, capped=True).block
+    capped = decide(ctx, capped=True)
+    assert not capped.block
+    assert capped.capped is True
 
 
 def test_counts_present(tmp_path: Path) -> None:

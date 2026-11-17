@@ -55,7 +55,9 @@ class Candidate:
 
 
 def _slug(value: str) -> str:
-    cleaned = re.sub(r"[^a-z0-9]+", "-", value.casefold()).strip("-")
+    # Keep Unicode word characters: non-English paths/commands must not collapse
+    # to the same ASCII-only slug (which made distinct rules overwrite each other).
+    cleaned = re.sub(r"[^\w]+", "-", value.casefold()).replace("_", "-").strip("-")
     return cleaned[:40] or "rule"
 
 

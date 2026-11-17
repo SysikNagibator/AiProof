@@ -33,6 +33,12 @@ from aiproof.redact.scanner import (
 
 
 def _emit(text: str) -> None:
+    # Lone surrogates (legal JSON input, hostile ledger payloads) cannot be
+    # encoded to a UTF-8 terminal and used to crash the CLI mid-output.
+    try:
+        text = text.encode("utf-8", "replace").decode("utf-8")
+    except UnicodeError:  # pragma: no cover - extremely defensive
+        text = text.encode("ascii", "backslashreplace").decode("ascii")
     sys.stdout.write(text + "\n")
 
 
@@ -260,7 +266,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
     payload = [f.as_dict() for f in findings]
     if args.json:
         _json(payload)
-        return 0
+        return 1 if findings else 0
     if not findings:
         _emit(t("tui.no_secrets", detect_language()))
         return 0
@@ -282,7 +288,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
     decision = decide(ctx, agent_lang=settings.agent_message_language, integrity=False)
     if args.json:
         _json(decision.as_dict())
-        return 0
+        return 1 if decision.block else 0
     for result in decision.results:
         _emit(f"[{result.verdict}] {result.claim.type}: {result.reason}")
     for finding in decision.findings:
@@ -361,6 +367,9 @@ def cmd_lang(args: argparse.Namespace) -> int:
                 )
                 _emit(f"  {code}{suffix}")
         return 0
+    if args.code not in KNOWN_LANGS:
+        _say("unknown_lang", name=args.code, langs=", ".join(KNOWN_LANGS))
+        return 2
     _set_global("language", args.code)
     _say("lang_set", code=args.code)
     return 0
@@ -383,7 +392,7 @@ def cmd_logs(args: argparse.Namespace) -> int:
     if not target.is_file():
         _emit(t("tui.no_logs", detect_language()))
         return 0
-    lines = target.read_text(encoding="utf-8").splitlines()
+    lines = target.read_text(encoding="utf-8", errors="replace").splitlines()
     if args.lines > 0:
         lines = lines[-args.lines :]
     for line in lines:
@@ -826,6 +835,11 @@ def cmd_tui(args: argparse.Namespace) -> int:
 
 
 def _set_global(key: str, value: str) -> None:
+    """Persist one user-level setting without ever losing the rest of the file.
+
+    A corrupt (or non-UTF-8) config must not crash ``aiproof lang``/``theme``;
+    an unreadable file is treated as empty and replaced atomically.
+    """
     import tomllib
 
     import tomli_w
@@ -833,10 +847,17 @@ def _set_global(key: str, value: str) -> None:
     path = paths.global_config_path()
     data: dict[str, Any] = {}
     if path.is_file():
-        data = tomllib.loads(path.read_text(encoding="utf-8"))
+        try:
+            parsed = tomllib.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+            parsed = {}
+        if isinstance(parsed, dict):
+            data = parsed
     data[key] = value
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(tomli_w.dumps(data).encode("utf-8"))
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_bytes(tomli_w.dumps(data).encode("utf-8"))
+    tmp.replace(path)
 
 
 # --------------------------------------------------------------------------- #

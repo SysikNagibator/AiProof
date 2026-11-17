@@ -33,15 +33,30 @@ All notable changes to AiProof are documented here. This project uses
 - Benchmark expanded from 30 to **31 scenarios**; detection 96%, false positives 0%, median
   latency ~55–90 ms (host-dependent). `docs/BENCH_RESULTS.md` regenerated.
 - `DEFAULT_CHECKS` now includes `learn_rules`.
-- Full UI localization: all eleven catalogs now cover the same **275 keys** (menu, help,
+- Full UI localization: all eleven catalogs now cover the same **276 keys** (menu, help,
   doctor, TUI, receipt, updates, plus localized CLI status output and wrapper messages),
   with no silent English fallbacks.
 
 ### Fixed
+- **Stop-hook cap actually stops.** After `MAX_BLOCKS` (or when Claude Code sets
+  `stop_hook_active`), the decision is recorded as `capped` and no longer blocks. The gate
+  previously kept returning `block`, which could trap an agent in an endless Stop loop and
+  contradicted `docs/HOOKS.md`; benchmark scenario 30 now expects `allow` on the cap.
+- **Scan/verify exit codes are consistent.** `aiproof scan --json` now returns `1` when
+  findings exist (matching the human-readable path), and `aiproof verify --json` returns `1`
+  on a blocking verdict, so automation cannot silently miss secrets or failed claims.
+- **Corrupt user config and logs never crash the CLI.** `aiproof lang`/`theme` tolerate an
+  unreadable or non-UTF-8 `config.toml` and write atomically; `aiproof logs` decodes with
+  replacement; `scan --histories`/`redact_in_place` tolerate non-UTF-8 files; MCP
+  `tools/call` tolerates malformed `params`.
 - **Tamper-guard bypass.** `Write`/`Edit`/`MultiEdit`/`NotebookEdit` with an absolute
   `file_path` (what editors actually send) evaded the repo-relative protected globs, so an
   agent could edit `.claude/settings.json`, `.git/hooks/*` or `.aiproof/rules.toml`. Protected
   patterns now also match suffix-anchored absolute paths.
+- **Test-tamper justification bypass.** Deleting a test file (or removing test cases) was
+  excused by *any* non-test change, so touching `README.md` hid a deletion. A removal is now
+  justified only by a real source **deletion** in the same diff, and a weakened assertion is
+  never excused by it.
 - **Session file baseline.** The spec'd `file_snapshot` event was never emitted, so
   `file_changed` could not detect "claimed but identical" for files already dirty at session
   start (the start-commit fallback would wrongly pass them). `SessionStart` (and wrapper mode)
@@ -61,7 +76,7 @@ All notable changes to AiProof are documented here. This project uses
 
 ### Audit hardening (second pass)
 - **Localized CLI and wrapper output.** Status lines, maintenance commands, learn/install/setup
-  flows and wrapper messages now go through the catalogs (275 keys in all 11 languages).
+  flows and wrapper messages now go through the catalogs (276 keys in all 11 languages).
 - **Extraction stays linear.** Clause lookup is precomputed and bounded, so 10 000 adversarial
   claims drop from ~121 s to ~0.2 s; the tamper matcher regex is bounded (1.2 s → ~20 ms).
 - **No unlocked ledger writes.** A lock timeout raises `TimeoutError` instead of silently

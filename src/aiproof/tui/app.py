@@ -173,6 +173,52 @@ def _static(root: Path, settings: Settings, state: State) -> None:
     console.print(widgets.footer(theme, state.lang, ascii_only=True))
 
 
+def apply_action(state: State, action: str) -> bool:
+    """Apply one decoded key *action* to *state*.
+
+    Pure state transition (no rendering, no I/O) so every branch is testable.
+    Returns ``True`` when the caller should quit the TUI.
+    """
+    if action == "quit":
+        return True
+    if action == "back" and state.screen is not None:
+        state.screen = None
+    elif action == "up" and state.screen is None:
+        state.selected = (state.selected - 1) % len(widgets.MENU)
+    elif action == "down" and state.screen is None:
+        state.selected = (state.selected + 1) % len(widgets.MENU)
+    elif action == "home":
+        state.selected = 0
+    elif action == "end" and state.screen is None:
+        state.selected = len(widgets.MENU) - 1
+    elif action == "lang":
+        cycle = [c for c in KNOWN_LANGS if c in available()]
+        if cycle:
+            current = cycle.index(state.lang) if state.lang in cycle else -1
+            state.lang = cycle[(current + 1) % len(cycle)]
+    elif action == "theme":
+        try:
+            current = THEME_CYCLE.index(state.theme_name)
+        except ValueError:
+            current = -1  # unknown configured theme -> start at green
+        state.theme_name = THEME_CYCLE[(current + 1) % len(THEME_CYCLE)]
+    elif action == "help":
+        state.help = not state.help
+    elif action.startswith("quick") and state.screen is None:
+        try:
+            index = int(action[len("quick") :]) - 1
+        except ValueError:
+            index = -1
+        if 0 <= index < len(widgets.MENU):
+            state.selected = index
+    elif action == "select" and state.screen is None:
+        screen = widgets.MENU[state.selected][0]
+        if screen == "exit":
+            return True
+        state.screen = screen
+    return False
+
+
 def run_tui(*, ascii_only: bool = False, no_anim: bool = False) -> int:
     """Run the interactive TUI; returns a process exit code."""
     root = paths.project_root()
@@ -204,39 +250,8 @@ def run_tui(*, ascii_only: bool = False, no_anim: bool = False) -> int:
                 key = _read_key()
                 action = keys.action_for(key) or key
                 state.narrow = console.width < 80
-                if action == "quit":
+                if apply_action(state, action):
                     break
-                if action == "back" and state.screen is not None:
-                    state.screen = None
-                elif action == "up" and state.screen is None:
-                    state.selected = (state.selected - 1) % len(widgets.MENU)
-                elif action == "down" and state.screen is None:
-                    state.selected = (state.selected + 1) % len(widgets.MENU)
-                elif action == "home":
-                    state.selected = 0
-                elif action == "end" and state.screen is None:
-                    state.selected = len(widgets.MENU) - 1
-                elif action == "lang":
-                    cycle = [c for c in KNOWN_LANGS if c in available()]
-                    if cycle:
-                        state.lang = cycle[(cycle.index(state.lang) + 1) % len(cycle)]
-                elif action == "theme":
-                    try:
-                        current = THEME_CYCLE.index(state.theme_name)
-                    except ValueError:
-                        current = -1  # unknown configured theme -> start at green
-                    state.theme_name = THEME_CYCLE[(current + 1) % len(THEME_CYCLE)]
-                elif action == "help":
-                    state.help = not state.help
-                elif action.startswith("quick") and state.screen is None:
-                    index = int(action[-1]) - 1
-                    if 0 <= index < len(widgets.MENU):
-                        state.selected = index
-                elif action == "select" and state.screen is None:
-                    screen = widgets.MENU[state.selected][0]
-                    if screen == "exit":
-                        break
-                    state.screen = screen
                 live.update(_build(root, settings, state), refresh=True)
     except KeyboardInterrupt:
         pass

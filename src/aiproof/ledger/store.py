@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any, cast
@@ -14,6 +15,25 @@ from aiproof.ledger._lock import file_lock
 
 ROTATE_BYTES = 8 * 1024 * 1024
 Redactor = Callable[[Any], Any]
+
+# JSON allows ``\ud800`` escapes, but such lone surrogates cannot be encoded as
+# UTF-8. Sanitize at the ledger boundary so a hostile payload can never crash an
+# append (or make the chain unwritable).
+_SURROGATE_RE = re.compile(r"[\ud800-\udfff]")
+
+
+def sanitize(value: Any) -> Any:
+    """Return *value* with lone surrogates replaced by U+FFFD (recursively)."""
+    if isinstance(value, str):
+        return _SURROGATE_RE.sub("\ufffd", value)
+    if isinstance(value, dict):
+        return {
+            sanitize(key) if isinstance(key, str) else key: sanitize(item)
+            for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [sanitize(item) for item in value]
+    return value
 
 
 class MalformedLedgerError(ValueError):
@@ -159,11 +179,11 @@ class LedgerStore:
             else:
                 prev, last_seq = chain.GENESIS, 0
             self._maybe_rotate(active)
-            safe = self._redact_payload(payload)
+            safe = sanitize(self._redact_payload(payload))
             record = chain.make_record(
-                session=session,
+                session=sanitize(session),
                 seq=last_seq + 1,
-                event=event,
+                event=sanitize(event),
                 payload=safe,
                 prev=prev,
             )

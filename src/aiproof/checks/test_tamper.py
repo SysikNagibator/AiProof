@@ -38,10 +38,12 @@ def _is_test_path(path: str) -> bool:
 
 
 def _diff(ctx: CheckContext) -> tuple[list[str], list[str], list[str]]:
+    """Return ``(deleted_tests, deleted_sources, changed_paths)`` for the diff."""
     if ctx.start_commit is None:
         return [], [], []
     rc, out, _ = gitutil.run_git(ctx.root, ["diff", "--name-status", ctx.start_commit])
-    deleted: list[str] = []
+    deleted_tests: list[str] = []
+    deleted_sources: list[str] = []
     changed: list[str] = []
     if rc != 0:
         return [], [], []
@@ -51,20 +53,29 @@ def _diff(ctx: CheckContext) -> tuple[list[str], list[str], list[str]]:
             continue
         status, path = parts[0], parts[-1]
         changed.append(path)
-        if status.startswith("D") and _is_test_path(path):
-            deleted.append(path)
-    return deleted, changed, out.splitlines()
+        if not status.startswith("D"):
+            continue
+        if _is_test_path(path):
+            deleted_tests.append(path)
+        else:
+            # Deleting non-test source is the only thing that may justify a test
+            # removal. Merely editing or adding a file must not (see below).
+            deleted_sources.append(path)
+    return deleted_tests, deleted_sources, changed
 
 
 def run(ctx: CheckContext) -> list[IntegrityFinding]:
     """Detect deleted tests, new skips, weakened assertions and lost test cases."""
     if ctx.start_commit is None:
         return []
-    deleted, changed_files, _ = _diff(ctx)
+    deleted, deleted_sources, _ = _diff(ctx)
     added = gitutil.added_lines_since(ctx.root, ctx.start_commit)
     removed = gitutil.removed_lines_since(ctx.root, ctx.start_commit)
-    non_test_changed = [f for f in changed_files if not _is_test_path(f)]
-    justified = bool(non_test_changed)
+    # A test removal is only justified when non-test source code was actually
+    # *removed* (deleted) in the same diff. Editing or adding a source file —
+    # e.g. touching `README.md` — must never excuse deleting tests, otherwise the
+    # rule is trivially bypassable (see docs/THREAT_MODEL.md).
+    justified = bool(deleted_sources)
 
     findings: list[IntegrityFinding] = []
     evidence: list[Evidence] = []
@@ -117,7 +128,7 @@ def run(ctx: CheckContext) -> list[IntegrityFinding]:
         if LOOSE_MATCHER_RE.search(ln)
         and any(EXACT_MATCHER_RE.search(r) and len(r.strip()) > 12 for r in removed)
     ]
-    if weakened and not justified:
+    if weakened:
         findings.append(
             IntegrityFinding(
                 NAME,

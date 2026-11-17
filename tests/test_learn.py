@@ -92,6 +92,16 @@ def test_compile_all_skips_linked(tmp_path: Path) -> None:
     assert len(compile_all(tmp_path)) == 1
 
 
+def test_unicode_paths_get_distinct_rule_ids(tmp_path: Path) -> None:
+    """An ASCII-only slug used to collapse distinct non-English paths into one id."""
+    first, _ = record_correction(tmp_path, "never edit src/файл.py")
+    second, _ = record_correction(tmp_path, "never edit src/другой.py")
+    first_rule = compile_correction(first).rule
+    second_rule = compile_correction(second).rule
+    assert first_rule is not None and second_rule is not None
+    assert first_rule.id != second_rule.id
+
+
 def test_glob_scope() -> None:
     assert matches_scope("tests/integration/**/*.py", "tests/integration/a/b.py")
     assert matches_scope("tests/integration/**/*.py", "tests/integration/x.py")
@@ -331,6 +341,15 @@ def test_upsert_block_removes_stray_end_marker(tmp_path: Path) -> None:
 def test_export_refuses_target_outside_project(tmp_path: Path) -> None:
     with pytest.raises(ValueError):
         write_export(tmp_path, [], target="../escape.md")
+    with pytest.raises(ValueError):
+        write_export(tmp_path, [], target=".")
+    (tmp_path / "sub").mkdir()
+    with pytest.raises(ValueError):
+        write_export(tmp_path, [], target="sub")
+    binary = tmp_path / "binary.md"
+    binary.write_bytes(b"\xff\xfe")
+    with pytest.raises(ValueError):
+        write_export(tmp_path, [], target="binary.md")
 
 
 def test_save_rules_validates(tmp_path: Path) -> None:

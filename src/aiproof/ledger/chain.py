@@ -27,8 +27,13 @@ def record_meta(record: dict[str, Any]) -> dict[str, Any]:
 
 
 def record_hash(prev: str, meta: dict[str, Any]) -> str:
-    """Compute ``sha256(prev + canonical_json(meta))``."""
-    payload = (prev + canonical_json(meta)).encode("utf-8")
+    """Compute ``sha256(prev + canonical_json(meta))``.
+
+    ``surrogatepass`` keeps verification deterministic for records that contain
+    escaped lone surrogates (``"\\ud800"`` is legal JSON input); without it a
+    crafted line would raise ``UnicodeEncodeError`` and crash ``ledger verify``.
+    """
+    payload = (prev + canonical_json(meta)).encode("utf-8", "surrogatepass")
     return hashlib.sha256(payload).hexdigest()
 
 

@@ -7,6 +7,7 @@ it is logged and a visible warning is surfaced in ``status``.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -102,10 +103,11 @@ def handle(event_name: str) -> int:
         return 0
 
     if event_name == "SessionStart":
-        start_commit = gitutil.head_commit(root) if gitutil.is_repo(root) else None
-        ok, reason = __import__("aiproof.config", fromlist=["pinned_ok"]).pinned_ok(root)
         from aiproof.checks.config_integrity import protected_files
+        from aiproof.config import pinned_ok
 
+        start_commit = gitutil.head_commit(root) if gitutil.is_repo(root) else None
+        ok, reason = pinned_ok(root)
         snapshot = protected_files(root, settings.protected_paths)
         store.append(
             "session_start",
@@ -170,7 +172,7 @@ def _handle_stop(
     message = event.last_message
     if not message:
         message = str(event.raw.get("transcript", ""))
-    test_message = __import__("os").environ.get("AIPROOF_TEST_MESSAGE")
+    test_message = os.environ.get("AIPROOF_TEST_MESSAGE")
     if test_message:
         message = test_message
 

@@ -61,8 +61,10 @@ def _ensure_inside(root: Path, target: str) -> Path:
     """Resolve *target* and refuse anything outside *root*."""
     root_resolved = root.resolve()
     path = (root / target).resolve()
-    if path != root_resolved and not path.is_relative_to(root_resolved):
+    if path == root_resolved or not path.is_relative_to(root_resolved):
         raise ValueError(f"export target is outside the project: {target}")
+    if path.is_dir():
+        raise ValueError(f"export target is a directory: {target}")
     return path
 
 
@@ -71,7 +73,10 @@ def write_export(
 ) -> tuple[Path, bool]:
     """Write the export block; returns ``(path, changed)``."""
     path = _ensure_inside(root, target)
-    original = path.read_text(encoding="utf-8") if path.is_file() else ""
+    try:
+        original = path.read_text(encoding="utf-8") if path.is_file() else ""
+    except (OSError, UnicodeDecodeError) as exc:
+        raise ValueError(f"cannot read export target {target}: {exc}") from exc
     updated = upsert_block(original, render_block(rules, lang))
     if updated == original:
         return path, False

@@ -23,15 +23,19 @@ MCP_PRESETS: dict[str, str] = {
 SERVER_NAME = "aiproof"
 
 
-def _read_json_object(path: Path) -> dict[str, Any]:
-    """Read *path* as a JSON object; return ``{}`` when missing, invalid or not an object."""
+def _read_json_object(path: Path) -> dict[str, Any] | None:
+    """Read *path* as a JSON object.
+
+    ``{}`` means "missing"; ``None`` means the file exists but cannot be trusted
+    (invalid JSON or a non-object). Callers must never overwrite an untrusted file.
+    """
     if not path.is_file():
         return {}
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError, ValueError):
-        return {}
-    return data if isinstance(data, dict) else {}
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError):
+        return None
+    return data if isinstance(data, dict) else None
 
 
 def mcp_server_entry() -> dict[str, Any]:
@@ -59,6 +63,11 @@ class McpAdapter(Adapter):
         path = root / ".mcp.json"
         result = InstallResult()
         data = _read_json_object(path)
+        if data is None:
+            # Preserve an unparseable config instead of replacing it with a
+            # partial object (same policy as the Claude Code adapter).
+            result.skipped.append(str(path))
+            return result
         servers = data.get("mcpServers")
         if not isinstance(servers, dict):
             servers = {}
@@ -78,6 +87,9 @@ class McpAdapter(Adapter):
         if not path.is_file():
             return result
         data = _read_json_object(path)
+        if data is None:
+            result.skipped.append(str(path))
+            return result
         servers = data.get("mcpServers", {})
         if isinstance(servers, dict):
             servers.pop(SERVER_NAME, None)

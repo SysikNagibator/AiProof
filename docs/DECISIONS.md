@@ -88,7 +88,7 @@ CLI is the non-interactive parity layer for the read-only views.
 ## D9 — Draft translations ship as `reviewed = false`
 
 Nine catalogs (uk, de, es, fr, pt_br, zh_cn, ja, ko, tr) ship as machine drafts and set
-`[meta] reviewed = false`; they cover the full English key set (275 keys) rather than
+`[meta] reviewed = false`; they cover the full English key set (276 keys) rather than
 falling back per key. The UI appends a "(machine-translated)" note from `is_reviewed()`.
 
 **Consequence:** CI fails if any catalog misses a key or a placeholder. Adding a language

@@ -46,10 +46,10 @@ definitions (`def test_...`, `it(`, `test(`, ...); new
 `skip`/`xfail`/`only`/`todo`/`#\[ignore\]`/`@Disabled` markers; and weakening an exact
 matcher (`toBe(x)`, `assertEqual(a, b)`) to a zero-argument truthy matcher. It does **not**
 count assertions, detect removed `expect(...)` calls, or catch a hardcoded lookup table —
-that is scenario 5, the single documented bench miss. A removal is *justified* when a
-matching source change appears in the same diff; this is a heuristic that avoids false
-positives on legitimate cleanup, and it is trivially bypassable by touching any source
-file, as documented in `docs/THREAT_MODEL.md`.
+that is scenario 5, the single documented bench miss. A test removal is *justified* only
+when a non-test source file was **deleted** in the same diff (not merely edited or added);
+this heuristic avoids false positives on legitimate cleanup, and it remains bypassable by
+deleting an unrelated source file, as documented in `docs/THREAT_MODEL.md`.
 
 ### `secrets_in_diff`
 Scans staged + unstaged + untracked changes and the known instruction files for secret

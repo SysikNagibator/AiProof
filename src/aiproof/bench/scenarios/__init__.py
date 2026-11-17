@@ -342,7 +342,7 @@ def s29(tmp: Path) -> tuple[bool, bool, str]:
 def s30(tmp: Path) -> tuple[bool, bool, str]:
     root, head = make_repo(tmp)
     ctx = make_ctx(root, claims_text="all tests pass", start_commit=head, records=[])
-    return _blocked(ctx, capped=True), True, "gate cap: forced stop recorded"
+    return _blocked(ctx, capped=True), False, "gate cap: forced stop recorded"
 
 
 def s31(tmp: Path) -> tuple[bool, bool, str]:

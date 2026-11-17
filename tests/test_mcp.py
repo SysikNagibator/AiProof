@@ -101,3 +101,60 @@ def test_notification_returns_none() -> None:
 def test_unknown_method_errors() -> None:
     response = _handle({"jsonrpc": "2.0", "id": 9, "method": "bogus"})
     assert response is not None and "error" in response
+
+
+def test_unknown_method_without_id_is_not_answered() -> None:
+    assert _handle({"jsonrpc": "2.0", "method": "bogus"}) is None
+
+
+def test_tools_call_tolerates_malformed_params() -> None:
+    for params in (None, [], "nope", 42):
+        response = _handle({"jsonrpc": "2.0", "id": 3, "method": "tools/call", "params": params})
+        assert response is not None
+        assert response["result"]["isError"] is True
+
+
+def test_tools_call_with_non_dict_arguments() -> None:
+    response = _handle(
+        {
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "tools/call",
+            "params": {"name": "aiproof_status", "arguments": ["bad"]},
+        }
+    )
+    assert response is not None
+    assert response["result"]["isError"] is False
+
+
+def test_scan_secrets_tool_reports_findings(tmp_path: Path) -> None:
+    from aiproof.bench.harness import make_repo
+
+    root, _ = make_repo(tmp_path / "repo")
+    secret = "AKIA" + "IOSFODNN7EXAMPLE"
+    (root / "leak.py").write_text(f'KEY = "{secret}"\n', encoding="utf-8")
+    payload = _text(call_tool("aiproof_scan_secrets", {"cwd": str(root)}))
+    assert payload["findings"][0]["path"] == "leak.py"
+
+
+def test_main_reads_jsonrpc_lines(monkeypatch, capsys) -> None:
+    import io
+    import sys
+
+    import aiproof.mcp.server as server
+
+    lines = "\n".join(
+        [
+            "",
+            "not json",
+            json.dumps([1, 2]),
+            json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}}),
+            json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}),
+            json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}),
+        ]
+    )
+    monkeypatch.setattr(sys, "stdin", io.StringIO(lines))
+    assert server.main() == 0
+    out = capsys.readouterr().out
+    responses = [json.loads(line) for line in out.splitlines()]
+    assert [item["id"] for item in responses] == [1, 2]

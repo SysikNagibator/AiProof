@@ -39,6 +39,30 @@ def check(claim: Claim, ctx: CheckContext) -> CheckResult:
     for raw in files:
         name = str(raw).replace("\\", "/")
         path = ctx.root / name
+        exists = path.is_file()
+
+        if claim.type is ClaimType.FILE_DELETED:
+            if exists:
+                # A modified/deleted-claim mismatch: the path is still there.
+                missing.append(name)
+                continue
+            existed_at_start = name in snapshot or (
+                ctx.start_commit is not None
+                and gitutil.file_content(ctx.root, name, ctx.start_commit) is not None
+            )
+            if not existed_at_start and name not in changed:
+                # No evidence it ever existed, so the claim cannot be verified.
+                missing.append(name)
+                continue
+            evidence.append(Evidence("snapshot", f"{name} is absent", {"file": name}))
+            continue
+
+        if not exists:
+            # "written"/"changed" claims must still be present; deleting a file is
+            # a different claim (``FILE_DELETED``).
+            missing.append(name)
+            continue
+
         current = gitutil.file_sha256(path)
         if name in snapshot:
             # Authoritative for files that already differed from HEAD at session

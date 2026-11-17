@@ -72,6 +72,14 @@ def _is_ours(hook: Any) -> bool:
     return isinstance(command, str) and MARKER in command
 
 
+def _inner_hooks(group: Any) -> list[Any] | None:
+    """Return a group's ``hooks`` list, or ``None`` when the shape is invalid."""
+    if not isinstance(group, dict):
+        return None
+    value = group.get("hooks")
+    return value if isinstance(value, list) else None
+
+
 def _has_our_hooks(settings: dict[str, Any]) -> bool:
     """Return True when *settings* contains at least one AiProof hook entry."""
     hooks = settings.get("hooks")
@@ -81,7 +89,8 @@ def _has_our_hooks(settings: dict[str, Any]) -> bool:
         if not isinstance(groups, list):
             continue
         for group in groups:
-            if isinstance(group, dict) and any(_is_ours(hook) for hook in group.get("hooks", [])):
+            inner = _inner_hooks(group)
+            if inner and any(_is_ours(hook) for hook in inner):
                 return True
     return False
 
@@ -130,27 +139,31 @@ class ClaudeCodeAdapter(Adapter):
         return ("not_installed" if seen else "missing"), None
 
     def _merge(self, settings: dict[str, Any]) -> dict[str, Any]:
-        hooks = settings.setdefault("hooks", {})
-        if not isinstance(hooks, dict):
-            hooks = {}
+        if "hooks" not in settings:
+            hooks: dict[str, Any] = {}
             settings["hooks"] = hooks
+        else:
+            hooks = settings["hooks"]
+            if not isinstance(hooks, dict):
+                raise ValueError("`hooks` is not a JSON object")
         for event, matcher in HOOK_EVENTS.items():
-            groups = hooks.setdefault(event, [])
-            if not isinstance(groups, list):
-                groups = []
-                hooks[event] = groups
+            groups = hooks.get(event, [])
+            if event in hooks and not isinstance(groups, list):
+                # Refuse to guess: replacing this value could destroy user config.
+                raise ValueError(f"`hooks.{event}` is not a list")
             # Drop our previous entry for this event, then re-add (idempotent).
             cleaned: list[Any] = []
             for group in groups:
-                if isinstance(group, dict):
-                    inner_hooks = group.get("hooks", [])
-                    inner = [h for h in inner_hooks if not _is_ours(h)]
-                    if inner:
-                        group["hooks"] = inner
-                        cleaned.append(group)
-                    # A group with only our hooks (or none) is dropped.
-                else:
+                inner = _inner_hooks(group)
+                if inner is None:
+                    # Unknown/malformed group: preserve it verbatim.
                     cleaned.append(group)
+                    continue
+                rest = [h for h in inner if not _is_ours(h)]
+                if rest:
+                    group["hooks"] = rest
+                    cleaned.append(group)
+                # A group with only our hooks (or none) is dropped.
             entry: dict[str, Any] = {"hooks": [_our_hook_entry(event)]}
             if matcher is not None:
                 entry["matcher"] = matcher
@@ -168,12 +181,14 @@ class ClaudeCodeAdapter(Adapter):
                 continue
             remaining: list[Any] = []
             for group in groups:
-                if not isinstance(group, dict):
+                inner = _inner_hooks(group)
+                if inner is None:
+                    # Preserve unknown/malformed groups instead of deleting them.
                     remaining.append(group)
                     continue
-                inner = [h for h in group.get("hooks", []) if not _is_ours(h)]
-                if inner:
-                    group["hooks"] = inner
+                rest = [h for h in inner if not _is_ours(h)]
+                if rest:
+                    group["hooks"] = rest
                     remaining.append(group)
             if remaining:
                 hooks[event] = remaining
@@ -191,11 +206,12 @@ class ClaudeCodeAdapter(Adapter):
         result = InstallResult()
         try:
             original = _read_json(path)
-        except MalformedSettingsError:
-            # Never replace a file we could not parse.
+            merged = self._merge(copy.deepcopy(original))
+        except (MalformedSettingsError, ValueError):
+            # Never replace a file we could not parse or whose shape we do not
+            # understand.
             result.skipped.append(os.fspath(path))
             return result
-        merged = self._merge(copy.deepcopy(original))
         if dry_run:
             result.skipped.append(os.fspath(path))
             return result

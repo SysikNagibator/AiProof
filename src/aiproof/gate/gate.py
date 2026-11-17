@@ -88,12 +88,17 @@ def decide(
         capped=capped,
     )
 
-    if strictness in ("observe", "warn"):
+    if capped:
+        # Safety valve: after MAX_BLOCKS consecutive blocks (or when the agent
+        # reports ``stop_hook_active``) never block again. Otherwise an agent that
+        # cannot satisfy a check would be trapped in an endless Stop-hook loop.
+        decision.block = False
+    elif strictness in ("observe", "warn"):
         decision.block = False
     elif strictness == "strict":
-        decision.block = has_fail or has_unknown or capped
+        decision.block = has_fail or has_unknown
     else:  # enforce
-        decision.block = has_fail or capped
+        decision.block = has_fail
 
     if decision.block or strictness in ("warn", "strict"):
         decision.reason = messages.build(decision, ctx, agent_lang)

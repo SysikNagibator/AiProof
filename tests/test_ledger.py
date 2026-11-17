@@ -108,3 +108,44 @@ def test_append_fails_loudly_when_lock_times_out(tmp_path: Path) -> None:
     finally:
         store_module.file_lock = original  # type: ignore[assignment]
     assert len(store.records()) == 1
+
+
+def test_append_sanitizes_lone_surrogates(tmp_path: Path) -> None:
+    """A JSON ``\\ud800`` payload must not make the ledger unwritable."""
+    store = LedgerStore(tmp_path)
+    record = store.append(
+        "correction",
+        {"text": "a\ud800b", "nested": {"\udcff": ["x\ud800"]}},
+        session="s\ud800",
+    )
+    payload = record["payload"]
+    assert isinstance(payload, dict)
+    assert payload["text"] == "a\ufffdb"
+    assert all("\ud800" not in str(key) for key in payload["nested"])
+    assert verify.verify(tmp_path).ok
+
+
+def test_verify_survives_escaped_surrogate_record(tmp_path: Path) -> None:
+    """``json.loads`` can produce lone surrogates; verification must not crash."""
+    import json
+
+    from aiproof.ledger import chain
+
+    store = LedgerStore(tmp_path)
+    first = store.append("session_start", {"a": 1}, session="s1")
+    meta = {
+        "v": chain.LEDGER_VERSION,
+        "ts": "2026-01-01T00:00:00+00:00",
+        "session": "s2",
+        "seq": 2,
+        "event": "correction",
+        "payload": {"text": "a\ud800b"},
+    }
+    digest = chain.record_hash(str(first["hash"]), meta)
+    record = {**meta, "prev": first["hash"], "hash": digest}
+    ledger = paths.ledger_path(tmp_path)
+    with ledger.open("a", encoding="utf-8") as handle:
+        # ensure_ascii=True keeps the lone surrogate as a legal JSON escape.
+        handle.write(json.dumps(record, ensure_ascii=True, sort_keys=True) + "\n")
+    result = verify.verify(tmp_path)
+    assert result.ok and result.checked == 2

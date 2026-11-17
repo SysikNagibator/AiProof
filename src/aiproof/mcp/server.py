@@ -75,7 +75,9 @@ def _root_from(args: dict[str, Any]) -> Path:
 
 def _result(payload: dict[str, Any]) -> dict[str, Any]:
     return {
-        "content": [{"type": "text", "text": json.dumps(payload, ensure_ascii=False)}],
+        # ``ensure_ascii=True`` keeps a crafted lone surrogate inside a ledger
+        # payload from making the stdio response unencodable.
+        "content": [{"type": "text", "text": json.dumps(payload, ensure_ascii=True)}],
         "isError": False,
     }
 
@@ -113,12 +115,9 @@ def call_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
         return _result({"ok": True, "findings": [f.as_dict() for f in findings]})
     if name == "aiproof_receipt":
         from aiproof.ledger.receipt import build_receipt
+        from aiproof.ledger.store import LedgerStore
 
-        session = (
-            __import__("aiproof.ledger.store", fromlist=["LedgerStore"])
-            .LedgerStore(root)
-            .last_session()
-        )
+        session = LedgerStore(root).last_session()
         if session is None:
             return _result({"ok": False, "reason": "no sessions"})
         return _result({"ok": True, "receipt": build_receipt(root, session).as_dict()})
@@ -149,9 +148,11 @@ def _handle(message: dict[str, Any]) -> dict[str, Any] | None:
     if method == "tools/list":
         return {"jsonrpc": "2.0", "id": msg_id, "result": {"tools": TOOLS}}
     if method == "tools/call":
-        params = message.get("params", {})
+        raw_params = message.get("params", {})
+        params = raw_params if isinstance(raw_params, dict) else {}
         name = str(params.get("name", ""))
-        args = params.get("arguments", {}) if isinstance(params.get("arguments"), dict) else {}
+        raw_args = params.get("arguments", {})
+        args = raw_args if isinstance(raw_args, dict) else {}
         try:
             result = call_tool(name, args)
         except Exception as exc:  # never let one call kill the stdio loop

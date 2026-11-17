@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from aiproof.bench.harness import make_ctx, make_repo, manual, rec
-from aiproof.checks import commit_exists, file_changed, tests_ran
+from aiproof.checks import commit_exists, file_changed, test_tamper, tests_ran
 from aiproof.claims.model import ClaimType
 
 
@@ -129,6 +129,31 @@ def test_file_changed_snapshot_passes_real_change(tmp_path: Path) -> None:
     assert file_changed.check(claim, ctx).verdict == "pass"
 
 
+def test_file_deleted_claim_rejects_modified_file(tmp_path: Path) -> None:
+    """A "deleted X" claim must not pass just because X changed."""
+    root, head = make_repo(tmp_path, {"gone.py": "V = 1\n"})
+    (root / "gone.py").write_text("V = 2\n", encoding="utf-8")
+    claim = manual(ClaimType.FILE_DELETED, "deleted gone.py", {"files": ["gone.py"]})
+    ctx = make_ctx(root, claims=[claim], start_commit=head)
+    assert file_changed.check(claim, ctx).verdict == "fail"
+
+
+def test_file_deleted_claim_passes_when_absent(tmp_path: Path) -> None:
+    root, head = make_repo(tmp_path, {"gone.py": "V = 1\n"})
+    (root / "gone.py").unlink()
+    claim = manual(ClaimType.FILE_DELETED, "deleted gone.py", {"files": ["gone.py"]})
+    ctx = make_ctx(root, claims=[claim], start_commit=head)
+    assert file_changed.check(claim, ctx).verdict == "pass"
+
+
+def test_file_written_claim_rejects_deleted_file(tmp_path: Path) -> None:
+    root, head = make_repo(tmp_path, {"gone.py": "V = 1\n"})
+    (root / "gone.py").unlink()
+    claim = manual(ClaimType.FILE_WRITTEN, "wrote gone.py", {"files": ["gone.py"]})
+    ctx = make_ctx(root, claims=[claim], start_commit=head)
+    assert file_changed.check(claim, ctx).verdict == "fail"
+
+
 def test_latest_run_is_authoritative(tmp_path: Path) -> None:
     """A later failing run must not be shadowed by an earlier, larger passing run."""
     from aiproof.bench.harness import tool_post
@@ -167,3 +192,59 @@ def test_dotnet_parse_is_linear() -> None:
     start = time.perf_counter()
     tests_ran.parse_counts("Passed! " * 8000)
     assert time.perf_counter() - start < 2.0
+
+
+# --------------------------------------------------------------------------- #
+# test_tamper: justification must require a real source removal
+# --------------------------------------------------------------------------- #
+def _tamper_ctx(root: Path, head: str | None):
+    return make_ctx(root, claims_text="all tests pass", start_commit=head)
+
+
+def test_test_tamper_blocks_deleted_test_without_source_removal(tmp_path: Path) -> None:
+    root, head = make_repo(tmp_path, {"tests/test_auth.py": "def test_auth():\n    assert True\n"})
+    (root / "tests" / "test_auth.py").unlink()
+    assert test_tamper.run(_tamper_ctx(root, head))
+
+
+def test_test_tamper_blocks_readme_touch_bypass(tmp_path: Path) -> None:
+    """Touching an unrelated source file must not excuse deleting tests."""
+    root, head = make_repo(
+        tmp_path,
+        {"tests/test_auth.py": "def test_auth():\n    assert True\n", "README.md": "hi\n"},
+    )
+    (root / "tests" / "test_auth.py").unlink()
+    (root / "README.md").write_text("hi, changed\n", encoding="utf-8")
+    findings = test_tamper.run(_tamper_ctx(root, head))
+    assert any(f.verdict == "fail" for f in findings)
+
+
+def test_test_tamper_blocks_modified_source_bypass(tmp_path: Path) -> None:
+    root, head = make_repo(tmp_path, {"tests/test_auth.py": "def test_auth():\n    assert True\n"})
+    (root / "src" / "app.py").write_text("def add(a, b):\n    return a + b + 1\n", encoding="utf-8")
+    (root / "tests" / "test_auth.py").unlink()
+    assert test_tamper.run(_tamper_ctx(root, head))
+
+
+def test_test_tamper_allows_test_removal_with_source_removal(tmp_path: Path) -> None:
+    root, head = make_repo(
+        tmp_path,
+        {"tests/test_auth.py": "def test_auth():\n    assert True\n", "src/old.py": "X = 1\n"},
+    )
+    (root / "tests" / "test_auth.py").unlink()
+    (root / "src" / "old.py").unlink()
+    assert test_tamper.run(_tamper_ctx(root, head)) == []
+
+
+def test_test_tamper_blocks_weakened_assertion_even_with_source_removal(tmp_path: Path) -> None:
+    root, head = make_repo(
+        tmp_path,
+        {
+            "tests/test_x.js": "expect(a).toBe(42)\n",
+            "src/old.py": "X = 1\n",
+        },
+    )
+    (root / "tests" / "test_x.js").write_text("expect(a).toBeTruthy()\n", encoding="utf-8")
+    (root / "src" / "old.py").unlink()
+    findings = test_tamper.run(_tamper_ctx(root, head))
+    assert any("weakened" in f.reason for f in findings)

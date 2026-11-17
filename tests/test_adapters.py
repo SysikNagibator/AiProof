@@ -44,6 +44,42 @@ def test_claude_uninstall_removes_only_ours(tmp_path: Path) -> None:
     assert not any("aiproof hook" in h["command"] for h in flat)
 
 
+def test_claude_install_skips_unexpected_nested_shapes(tmp_path: Path) -> None:
+    settings_path = tmp_path / ".claude" / "settings.json"
+    settings_path.parent.mkdir(parents=True)
+    for broken in (
+        {"hooks": []},
+        {"hooks": {"Stop": "not-a-list"}},
+        {"hooks": None},
+    ):
+        settings_path.write_text(json.dumps(broken), encoding="utf-8")
+        result = ClaudeCodeAdapter().install(tmp_path)
+        assert result.skipped and not result.changed
+        assert json.loads(settings_path.read_text()) == broken
+
+
+def test_claude_preserves_unknown_hook_groups(tmp_path: Path) -> None:
+    settings_path = tmp_path / ".claude" / "settings.json"
+    settings_path.parent.mkdir(parents=True)
+    original = {"hooks": {"Stop": [{"hooks": 5}, "opaque"]}}
+    settings_path.write_text(json.dumps(original), encoding="utf-8")
+    assert ClaudeCodeAdapter().install(tmp_path).changed
+    installed = json.loads(settings_path.read_text())
+    assert {"hooks": 5} in installed["hooks"]["Stop"]
+    assert "opaque" in installed["hooks"]["Stop"]
+    ClaudeCodeAdapter().uninstall(tmp_path)
+    remaining = json.loads(settings_path.read_text())
+    assert remaining["hooks"]["Stop"] == [{"hooks": 5}, "opaque"]
+
+
+def test_claude_hook_status_survives_bad_shapes(tmp_path: Path) -> None:
+    settings_path = tmp_path / ".claude" / "settings.json"
+    settings_path.parent.mkdir(parents=True)
+    settings_path.write_text(json.dumps({"hooks": {"Stop": [{"hooks": 5}]}}), encoding="utf-8")
+    state, _path = ClaudeCodeAdapter().hook_status(tmp_path)
+    assert state == "not_installed"
+
+
 def test_claude_parse_event() -> None:
     event = ClaudeCodeAdapter().parse_event(
         {
@@ -68,21 +104,24 @@ def test_mcp_adapter_writes_entry(tmp_path: Path) -> None:
 
 
 def test_mcp_adapter_tolerates_malformed_config(tmp_path: Path) -> None:
-    """A corrupt ``.mcp.json`` must not crash install/uninstall."""
-    (tmp_path / ".mcp.json").write_text("{not valid json", encoding="utf-8")
-    McpAdapter().install(tmp_path, dry_run=True)
-    McpAdapter().uninstall(tmp_path, dry_run=True)
-    McpAdapter().install(tmp_path)
-    data = json.loads((tmp_path / ".mcp.json").read_text())
-    assert "aiproof" in data["mcpServers"]
+    """A corrupt ``.mcp.json`` must be skipped, never overwritten."""
+    path = tmp_path / ".mcp.json"
+    path.write_text("{not valid json", encoding="utf-8")
+    install = McpAdapter().install(tmp_path)
+    assert install.skipped and not install.changed
+    uninstall = McpAdapter().uninstall(tmp_path)
+    assert uninstall.skipped and not uninstall.changed
+    assert path.read_text(encoding="utf-8") == "{not valid json"
 
 
 def test_mcp_adapter_tolerates_non_object_config(tmp_path: Path) -> None:
-    (tmp_path / ".mcp.json").write_text("[]", encoding="utf-8")
-    McpAdapter().uninstall(tmp_path)  # must not raise
-    McpAdapter().install(tmp_path)
-    data = json.loads((tmp_path / ".mcp.json").read_text())
-    assert "aiproof" in data["mcpServers"]
+    path = tmp_path / ".mcp.json"
+    path.write_text("[]", encoding="utf-8")
+    uninstall = McpAdapter().uninstall(tmp_path)  # must not raise or rewrite
+    assert uninstall.skipped and not uninstall.changed
+    install = McpAdapter().install(tmp_path)
+    assert install.skipped and not install.changed
+    assert path.read_text(encoding="utf-8") == "[]"
 
 
 def test_mcp_snippet_shape() -> None:

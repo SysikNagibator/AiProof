@@ -109,7 +109,13 @@ def scan_file(
         text = path.read_text(encoding="utf-8", errors="replace")
     except OSError:
         return []
-    location = os.fspath(path.relative_to(root)) if root is not None else os.fspath(path)
+    if root is not None:
+        try:
+            location = os.fspath(path.relative_to(root))
+        except ValueError:
+            location = os.fspath(path)
+    else:
+        location = os.fspath(path)
     return scan_text(text, location.replace(os.sep, "/"), allowlist)
 
 
@@ -172,7 +178,7 @@ def redact_in_place(path: Path, allowlist: Allowlist | None = None) -> tuple[boo
     """Redact a file in place with a ``.bak`` backup; returns ``(changed, backup)``."""
     try:
         original = path.read_text(encoding="utf-8")
-    except OSError as exc:
+    except (OSError, UnicodeDecodeError) as exc:
         return False, f"cannot read: {exc}"
     redacted = redact_text(original, allowlist)
     if redacted == original:

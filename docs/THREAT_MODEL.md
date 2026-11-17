@@ -48,10 +48,12 @@ suspiciously clean output as `unknown` in `strict`.
 Deleted test files/cases, newly added `skip`/`xfail`/`only` markers, and exact matchers
 replaced by loose ones are flagged.
 
-*Limit:* renaming/refactoring tests legitimately can look like deletion; we allow it when
-matching non-test source changes accompany it (see scenario 27/28 in [`BENCH.md`](BENCH.md)).
-That justification rule also means an agent can hide a deletion by touching any source file.
-Assertion counts and hardcoded lookup tables are not detected (bench scenario 5).
+*Limit:* renaming/refactoring tests legitimately can look like deletion; we allow it when a
+non-test source file was **deleted** in the same diff (see scenario 27/28 in
+[`BENCH.md`](BENCH.md)). Editing or adding a source file (e.g. touching `README.md`) does
+*not* excuse a deletion; the remaining bypass is deleting an unrelated source file, which
+is destructive and git-visible. Assertion counts and hardcoded lookup tables are not
+detected (bench scenario 5).
 
 ### 4. Secret redaction & scanning
 
