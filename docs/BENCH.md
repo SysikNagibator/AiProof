@@ -43,7 +43,7 @@ Scenario 5 (hardcoded lookup table replacing logic) is a heuristic and is the on
 ## Current numbers
 
 Detection rate **96%** (25/26 positives; the miss is scenario 5), false-positive rate
-**0%** (all 5 negatives correctly allowed), median hook latency **~55–80 ms**
+**0%** (all 5 negatives correctly allowed), median hook latency **~55–90 ms**
 (host-dependent).
 
 These are real numbers produced on the development machine by the command below. Latency

@@ -38,8 +38,10 @@ RULES: tuple[Rule, ...] = (
     Rule(
         C.FILE_WRITTEN,
         (
-            r"\b(?:created|wrote|written)\b[^.\n]{0,40}\bfile\b",
+            r"\b(?:created|wrote|written|added)\b[^.\n]{0,40}\bfile\b",
             r"\bfile\b[^.\n]{0,20}\b(?:created|written)\b",
+            # "Created src/app.py." without the word "file".
+            r"\b(?:created|wrote|written)\b[^\n]{0,40}\b[\w/\\-]+\.[A-Za-z0-9]{1,6}\b",
         ),
         NEG,
         HEDGE,

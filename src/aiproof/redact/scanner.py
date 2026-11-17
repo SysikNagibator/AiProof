@@ -49,6 +49,8 @@ def _run_git(root: Path, args: list[str]) -> str:
 
 def scan_text(text: str, location: str, allowlist: Allowlist | None = None) -> list[ScanFinding]:
     """Scan a blob of text, mapping each finding to ``location``."""
+    if allowlist is not None and allowlist.allows_path(location):
+        return []
     out: list[ScanFinding] = []
     line_of = _line_index(text)
     for finding in find_secrets(text, allowlist):

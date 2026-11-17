@@ -92,7 +92,8 @@ Every other agent in `src/aiproof/adapters/registry.py` is marked `planned` or
 * **`mcp-only`** — the agent connects to `aiproof mcp` and can *ask* AiProof to verify
   claims, but cannot be blocked mid-session (no lifecycle hook is used).
 * **`wrapper`** — `aiproof run -- <agent> ...` verifies *after* the process exits. This is
-  post-hoc and cannot block.
+  post-hoc and cannot block. Its exit code mirrors the agent's, except that a blocking
+  verdict returns `1` when the agent itself exited `0`, so CI can fail on a false claim.
 
 See `docs/AGENTS_SUPPORT.md` for the current per-agent status and the exact date each
 verified integration was checked. The honesty rule from the spec is enforced by review:

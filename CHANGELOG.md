@@ -31,10 +31,11 @@ All notable changes to AiProof are documented here. This project uses
 
 ### Changed
 - Benchmark expanded from 30 to **31 scenarios**; detection 96%, false positives 0%, median
-  latency ~55–80 ms (host-dependent). `docs/BENCH_RESULTS.md` regenerated.
+  latency ~55–90 ms (host-dependent). `docs/BENCH_RESULTS.md` regenerated.
 - `DEFAULT_CHECKS` now includes `learn_rules`.
-- Full UI localization: all eleven catalogs now cover the same **201 keys** (menu, help,
-  doctor, TUI, receipt, updates), with no silent English fallbacks.
+- Full UI localization: all eleven catalogs now cover the same **275 keys** (menu, help,
+  doctor, TUI, receipt, updates, plus localized CLI status output and wrapper messages),
+  with no silent English fallbacks.
 
 ### Fixed
 - **Tamper-guard bypass.** `Write`/`Edit`/`MultiEdit`/`NotebookEdit` with an absolute
@@ -57,6 +58,28 @@ All notable changes to AiProof are documented here. This project uses
 ### Security
 - Corrections are redacted before storage, so secrets cannot leak into compiled rules or the
   exported `AGENTS.md` block.
+
+### Audit hardening (second pass)
+- **Localized CLI and wrapper output.** Status lines, maintenance commands, learn/install/setup
+  flows and wrapper messages now go through the catalogs (275 keys in all 11 languages).
+- **Extraction stays linear.** Clause lookup is precomputed and bounded, so 10 000 adversarial
+  claims drop from ~121 s to ~0.2 s; the tamper matcher regex is bounded (1.2 s → ~20 ms).
+- **No unlocked ledger writes.** A lock timeout raises `TimeoutError` instead of silently
+  entering the critical section and forking the chain.
+- **Learning pipeline.** Corrections are deduplicated against their redacted form and survive a
+  corrupt ledger; compiled rules are scope-qualified, command regexes respect word boundaries,
+  `import os, django` is caught, exports refuse paths outside the project, `save_rules`
+  validates, and backtest samples are redacted.
+- **Maintenance robustness.** Doctor detects hooks in project/local/user settings and reports
+  malformed JSON; `update --check` reports network/invalid-JSON failures with exit code 1;
+  pause state ignores non-UTF-8 bytes.
+- **Receipts and redaction.** Receipt renderers tolerate schema-broken payloads and HTML shows
+  tamper attempts; fingerprints are deterministic 8-hex, surrogate-safe, redact JSON keys, and
+  cover Hugging Face, Twilio, Discord, Slack webhooks and Sentry DSNs.
+- **Checks.** The latest test run is authoritative, zero-test output fails, `unknown` findings
+  count in the gate, and mismatch messages report the observed count instead of the claim.
+- **Draft language packs** gained `tests_added`, `build_passes`, `lint_passes`, `bug_fixed`,
+  `dependency_installed` and `migration_run`; CJK spacing variants are accepted.
 
 ## [0.1.0] — first public build
 

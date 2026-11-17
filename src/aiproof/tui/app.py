@@ -11,7 +11,7 @@ from typing import Any, cast
 
 from aiproof import paths
 from aiproof.config import Settings, load_settings
-from aiproof.i18n import KNOWN_LANGS, available, detect_language
+from aiproof.i18n import KNOWN_LANGS, available, detect_language, t
 from aiproof.ledger.store import LedgerStore
 from aiproof.tui import keys, widgets
 from aiproof.tui.screens import render as render_screen
@@ -34,6 +34,36 @@ class State:
     dirty: bool = True
 
 
+def _read_utf8_char(fd: int) -> bytes:
+    """Read one (possibly multi-byte UTF-8) character from *fd*.
+
+    A single ``os.read(fd, 1)`` returns only one byte, so a Cyrillic/Greek/CJK
+    key (2-4 UTF-8 bytes) would fail to decode and map to no action. Read the
+    full sequence based on the lead byte.
+    """
+    first = os.read(fd, 1)
+    if not first:
+        return b""
+    lead = first[0]
+    if lead < 0x80:
+        return first
+    if 0xC0 <= lead < 0xE0:
+        needed = 1
+    elif 0xE0 <= lead < 0xF0:
+        needed = 2
+    elif 0xF0 <= lead < 0xF8:
+        needed = 3
+    else:
+        return first  # invalid lead byte; let key_name handle it
+    rest = b""
+    while len(rest) < needed:
+        chunk = os.read(fd, needed - len(rest))
+        if not chunk:
+            break
+        rest += chunk
+    return first + rest
+
+
 def _read_key() -> str:
     """Read a single key (layout-independent), POSIX + Windows."""
     if os.name == "nt":  # pragma: no cover - Windows console
@@ -53,7 +83,7 @@ def _read_key() -> str:
     old = termios.tcgetattr(fd)
     try:
         tty.setraw(fd)
-        chunk = os.read(fd, 1)
+        chunk = _read_utf8_char(fd)
         if chunk == b"\x1b":
             os.set_blocking(fd, False)
             time.sleep(0.01)
@@ -69,15 +99,21 @@ def _read_key() -> str:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
 
-def _last_verdict(root: Path) -> str:
+def _verdict_token(root: Path) -> str:
+    """Return ``none``/``blocked``/``verified`` for the last gate decision."""
     store = LedgerStore(root)
-    verdict = "—"
+    token = "none"
     for record in store.records():
         if record.get("event") == "gate_decision":
             payload = record.get("payload", {})
             if isinstance(payload, dict):
-                verdict = "blocked" if payload.get("block") else "verified"
-    return verdict
+                token = "blocked" if payload.get("block") else "verified"
+    return token
+
+
+def _last_verdict(root: Path, lang: str) -> str:
+    """Return the localized last-verdict label."""
+    return t(f"status.verdict_{_verdict_token(root)}", lang)
 
 
 def _build(root: Path, settings: Settings, state: State) -> Any:
@@ -89,17 +125,23 @@ def _build(root: Path, settings: Settings, state: State) -> Any:
         agent=(next(iter(detected_agents(root)), "none")),
         project=root.name or str(root),
         lang=state.lang,
-        last_verdict=_last_verdict(root),
+        last_verdict=_last_verdict(root, state.lang),
         ascii_only=ascii_only,
     )
     if state.screen is not None:
         body = render_screen(state.screen, root, settings, state.lang, theme, ascii_only)
     else:
-        body = widgets.menu(theme, selected=state.selected, lang=state.lang, narrow=state.narrow)
+        body = widgets.menu(
+            theme,
+            selected=state.selected,
+            lang=state.lang,
+            narrow=state.narrow,
+            ascii_only=ascii_only,
+        )
     parts: list[Any] = [header, body]
     if state.help:
-        parts.append(widgets.help_overlay(theme, state.lang))
-    parts.append(widgets.footer(theme, state.lang))
+        parts.append(widgets.help_overlay(theme, state.lang, ascii_only=ascii_only))
+    parts.append(widgets.footer(theme, state.lang, ascii_only=ascii_only))
     return widgets.stack(parts)
 
 
@@ -123,12 +165,12 @@ def _static(root: Path, settings: Settings, state: State) -> None:
             agent="none",
             project=root.name or str(root),
             lang=state.lang,
-            last_verdict=_last_verdict(root),
+            last_verdict=_last_verdict(root, state.lang),
             ascii_only=True,
         )
     )
-    console.print(widgets.menu(theme, selected=state.selected, lang=state.lang))
-    console.print(widgets.footer(theme, state.lang))
+    console.print(widgets.menu(theme, selected=state.selected, lang=state.lang, ascii_only=True))
+    console.print(widgets.footer(theme, state.lang, ascii_only=True))
 
 
 def run_tui(*, ascii_only: bool = False, no_anim: bool = False) -> int:
@@ -140,9 +182,9 @@ def run_tui(*, ascii_only: bool = False, no_anim: bool = False) -> int:
     try:
         from rich.console import Console
         from rich.live import Live
-    except ModuleNotFoundError:
-        _static(root, settings, state)
-        return 0
+    except ModuleNotFoundError:  # pragma: no cover - rich is a declared dependency
+        print("AiProof TUI requires the 'rich' package; install it with: pip install rich")
+        return 1
 
     if not (sys.stdin.isatty() and sys.stdout.isatty()):
         _static(root, settings, state)
@@ -179,9 +221,11 @@ def run_tui(*, ascii_only: bool = False, no_anim: bool = False) -> int:
                     if cycle:
                         state.lang = cycle[(cycle.index(state.lang) + 1) % len(cycle)]
                 elif action == "theme":
-                    state.theme_name = THEME_CYCLE[
-                        (THEME_CYCLE.index(state.theme_name) + 1) % len(THEME_CYCLE)
-                    ]
+                    try:
+                        current = THEME_CYCLE.index(state.theme_name)
+                    except ValueError:
+                        current = -1  # unknown configured theme -> start at green
+                    state.theme_name = THEME_CYCLE[(current + 1) % len(THEME_CYCLE)]
                 elif action == "help":
                     state.help = not state.help
                 elif action.startswith("quick") and state.screen is None:

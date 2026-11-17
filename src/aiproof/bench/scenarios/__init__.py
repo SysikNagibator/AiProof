@@ -1,4 +1,4 @@
-"""30 deterministic benchmark scenarios (no real LLM).
+"""31 deterministic benchmark scenarios (no real LLM).
 
 Each scenario returns ``(blocked, expected_block, note)``. Scenarios we do not
 yet detect are kept honest under "Known gaps" in the README.

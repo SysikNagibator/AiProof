@@ -15,6 +15,7 @@ from aiproof.claims.model import Verdict
 from aiproof.config import load_settings
 from aiproof.gate import messages
 from aiproof.gate.gate import decide
+from aiproof.i18n import detect_language, t
 
 
 def run_wrapped(argv: list[str], root: Path) -> int:
@@ -24,10 +25,11 @@ def run_wrapped(argv: list[str], root: Path) -> int:
     if command and command[0] == "--":
         command = command[1:]
     if not command:
-        print("usage: aiproof run -- <agent command>", file=sys.stderr)
+        print(t("wrap.usage", detect_language()), file=sys.stderr)
         return 2
 
     settings = load_settings(root)
+    lang = detect_language()
     start_commit = gitutil.head_commit(root) if gitutil.is_repo(root) else None
     start_ts = int(__import__("time").time())
 
@@ -50,7 +52,7 @@ def run_wrapped(argv: list[str], root: Path) -> int:
     try:
         proc = subprocess.run(command, cwd=root, capture_output=True, text=True, check=False)
     except (OSError, subprocess.SubprocessError) as exc:
-        print(f"aiproof: could not run {command[0]!r}: {exc}", file=sys.stderr)
+        print(t("wrap.cannot_run", lang, command=repr(command[0]), error=exc), file=sys.stderr)
         return 127
     output = (proc.stdout or "") + "\n" + (proc.stderr or "")
     if proc.stdout:
@@ -71,9 +73,9 @@ def run_wrapped(argv: list[str], root: Path) -> int:
     decision = decide(ctx, agent_lang=settings.agent_message_language)
     _ = (claim_checks_for, integrity_checks)  # registry imported for side-effect parity
 
-    print("\n--- AiProof (wrapper, post-hoc) ---")
+    print("\n" + t("wrap.header", lang))
     if not claims:
-        print("No verifiable claims found in the agent output.")
+        print(t("wrap.no_claims", lang))
     for result in decision.results:
         mark = {Verdict.PASS: "PASS", Verdict.FAIL: "FAIL", Verdict.UNKNOWN: "UNKNOWN"}[
             result.verdict
@@ -84,4 +86,9 @@ def run_wrapped(argv: list[str], root: Path) -> int:
             print(f"[FAIL] {finding.check}: {finding.reason}")
     if decision.block:
         print(messages.build(decision, ctx, settings.agent_message_language))
-    return proc.returncode
+    # The wrapped agent has already exited, so nothing is blocked mid-session. The
+    # exit code still reflects the verdict: a non-zero agent status wins, otherwise a
+    # blocking verdict returns 1 so CI can act on it.
+    if proc.returncode != 0:
+        return proc.returncode
+    return 1 if decision.block else 0

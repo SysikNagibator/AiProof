@@ -1,28 +1,28 @@
 # TUI
 
 The TUI is the "AiPC-style" interface: a calm terminal UI built with `rich`, one `Live`
-frame in the alternate screen buffer, redrawn only on events.
+frame in the alternate screen buffer, redrawn on key press. The CLI is the non-interactive
+parity layer; where a screen is still read-only, it says so below.
 
 ## Rendering rules
 
-* **One frame, no flicker.** A single `rich.Live` frame is redrawn on key press, resize,
-  refresh timer or background event. The terminal is restored on exit **and on crash**
-  (try/finally). No leftover lines.
+* **One frame, no flicker.** A single `rich.Live` frame is redrawn on key press. The
+  terminal is restored on exit **and on crash** (try/finally). No leftover lines.
+* **No background refresh today.** Screens are rebuilt from the ledger on every key press;
+  there is no timer, no spinner and no partial repaint. `--no-anim` is accepted for forward
+  compatibility but is a no-op.
 * **Header card.** A rounded card with the pixel logo (block characters, green gradient),
-  the slogan and a status line:
-  `mode: enforce   agent: claude-code ✓   project: <name>   lang: EN   last session: ✓ verified`.
-  Status dot colors: green armed, amber degraded/warn-only, red tampered/paused, grey off.
-  Colour is never the only signal — a symbol/text always accompanies it (accessibility).
-* **Frameless numbered list.** Inline dim descriptions, blank-line group separators, the
-  `❯` marker on the selection. Danger items (uninstall, pause, redact-in-place) turn red
-  when selected. No fills anywhere.
+  the slogan and a status line: armed state, mode, agent, project and the last verdict.
+  Status dots are always paired with text (accessibility).
+* **Frameless numbered list.** Inline dim descriptions and the `❯` marker on the selection.
+  There are **no group separators and no danger items** yet (see gaps below).
 * **One dim footer** with localized key hints.
-* **Narrow windows (< ~80 cols)** automatically hide descriptions. The minimum supported
-  width is 60 columns; below that the layout is a compact single column.
+* **Narrow windows (< ~80 cols)** hide the menu descriptions. There is no separate
+  compact layout, and the 60-column minimum is a recommendation, not enforced.
 * **Themes:** `green` (default), `mono`, `amber`. `NO_COLOR` and dumb terminals are
-  respected; `--ascii` (or auto-detection) switches to box-drawing-free/emoji-free output.
-  CJK and combining-character width is handled via `wcwidth`.
-* **Animation** is cheap and opt-in; disabled by `--no-anim` and in non-TTY mode.
+  respected; `--ascii` (or auto-detection on non-UTF-8 Windows) switches the logo/banner,
+  selection marker, status glyphs, help overlay and table borders to ASCII equivalents.
+* **Non-TTY runs** print the menu once instead of entering the alternate screen.
 
 ## Controls
 
@@ -30,76 +30,67 @@ frame in the alternate screen buffer, redrawn only on events.
 | --- | --- |
 | `W`/`S`, `↑`/`↓` | move |
 | `Home`/`End` | jump |
-| `Enter` | open |
+| `Enter` | open the selected menu item |
 | digits `1`–`9` | quick-select |
 | `Esc`/`Backspace` | back |
 | `Q` | quit |
 | `L` | cycle language (wraps) |
 | `T` | cycle theme |
 | `?` | help overlay |
-| `/` | filter long lists |
-| `R` | refresh |
+| `R` | redraw (the frame is rebuilt on every key, so this is effectively a no-op) |
+| `/` | **not implemented** — reserved for list filtering |
 
-**Layout independence:** non-Latin keyboards work by *physical key position*. `←W/S/Q/L/T`
-map to the same actions even when the layout produces Cyrillic characters
-(`ц/ы/й/д/е`). The map lives in `src/aiproof/tui/keys.py`; `aiproof keys` prints what the
-terminal receives, as a keyboard test.
+**Layout independence:** non-Latin keyboards work by *physical key position*. `W/S/Q/L/T`
+map to the same actions even when the layout produces Cyrillic characters (`ц/ы/й/д/е`).
+The map lives in `src/aiproof/tui/keys.py`; `aiproof keys` prints what the terminal
+receives, as a keyboard test. Multi-byte UTF-8 keys are read completely (not one byte).
 
-Mouse is optional and off by default.
+Mouse is optional and off by default (**not implemented**).
 
-## Screens
+## Screens — implemented today
 
 Each screen is a module under `src/aiproof/tui/screens/`, registered in `RENDERERS`. All
 strings go through i18n.
 
-1. **Dashboard / Status** — armed state, mode, pinned-config integrity, ledger chain
-   status, detected agents + support level, last 5 sessions with verdict icons, counts
-   (claims verified / false claims caught / secrets blocked / tamper attempts), and a
-   one-line health summary.
-2. **Live feed** (`aiproof watch`) — the most recent ledger events with verdict colors,
-   bounded ring buffer (last 30), dangerous events highlighted red.
-3. **Sessions** — date, agent, duration, verdict, claims count, findings; `Enter` opens
-   detail.
-4. **Session detail (the receipt)** — claims-vs-evidence table, tamper/secret findings,
-   chain head hash, export actions (JSON/HTML/MD, badge snippet).
-5. **Checks** — toggle each check, set strictness; changes to pinned keys trigger the
-   human-confirmation flow.
-6. **Secrets** — run a scan (diff / agent histories / instruction files); findings as
-   type + location + fingerprint; add to allowlist; redact with backup after confirmation.
-7. **Rules & Corrections** (Phase 2) — corrections and compiled rules with enable state,
-   backtest action, and export to the `AGENTS.md` block. See `docs/LEARN.md`.
-8. **Settings** — language, theme, strictness, test command override, protected paths,
-   agents (connect/disconnect with dry-run preview), update channel, error policy.
-9. **Doctor** — install integrity, PATH, hook installation, pin integrity, ledger chain,
-   version, dependency versions, terminal capabilities; each line has ✓/!/✗ and a fix
-   hint, plus a "run self-test" action that simulates a false "all tests pass" stop.
-10. **Logs** — last N lines of `aiproof.log` (separate from the ledger), level filters.
-11. **Check updates** — compares GitHub releases, shows the changelog, downloads only after
-    an explicit Yes and a SHA-256 check.
-12. **About** — logo, `AiProof <version> by SYSIK`, license, links.
+| # | screen | shows today |
+| --- | --- | --- |
+| 1 | Dashboard | armed state, mode, pinned-config status, ledger chain status, detected agents, session count, data dir |
+| 2 | Live feed | the last 30 ledger events with verdict colors; dangerous events in red |
+| 3 | Sessions | index, session id and event count (last 50) |
+| 4 | Session detail | Markdown receipt for the **latest** session |
+| 5 | Checks | the check list with on/off glyphs and the strictness value (read-only) |
+| 6 | Secrets | one diff scan showing type + location + fingerprint (read-only) |
+| 7 | Rules & Corrections | recorded corrections and compiled rules with enable state/severity (read-only) |
+| 8 | Settings | language, available languages, theme, strictness, error policy, test command, agent message language (read-only) |
+| 9 | Doctor | the same probes as `aiproof doctor`, each with a ✓/!/✗ mark and a hint |
+| 10 | Logs | the last 40 lines of `aiproof.log` (no level filter) |
+| 11 | Check updates | static hint; the network is only used by `aiproof update --check` |
+| 12 | About | logo, `AiProof <version> by SYSIK`, tagline, license |
 
-Default menu order: Dashboard, Live feed, Sessions, Checks, Secrets, Rules & Corrections,
-Settings, Doctor, Logs, Check updates, About, Exit — groups separated by blank lines.
+## Known gaps (not implemented in the TUI)
 
-## Non-interactive parity
+These exist in the CLI (`status`, `sessions`, `show`, `checks`, `scan`, `learn`, `setup`,
+`doctor`, `logs`, `update`, `lang`, `theme`) but not as interactive TUI actions:
 
-Every TUI action exists as a plain command, all supporting `--json` where it makes sense and
-exit codes suitable for CI:
+* Dashboard: last-5-sessions table, claim/secret/tamper counters, one-line health summary.
+* Sessions: date/agent/duration/verdict columns and `Enter` → detail for the selected
+  session (the detail screen always opens the latest session).
+* Toggling checks or strictness; pinned keys would require the human-confirmation flow.
+* Secrets actions (allowlist, redact-in-place with backup).
+* Rules: enable/disable, backtest stats, export to `AGENTS.md`.
+* Settings editing, protected-path editing, agent connect/disconnect, update channel.
+* Doctor "run self-test" action.
+* Log level filters.
+* Update download/replace (same as the CLI: not implemented anywhere yet).
+* `/` filtering and mouse support. `R` only triggers the normal key-press redraw.
 
-```
-aiproof status | watch | sessions | show <id> | checks | scan | learn | setup
-        | doctor | logs | update | about | lang <code> | theme <name>
-```
+Writes that exist in the CLI remain protected there: `pause`, `resume`, `pin`, `checks`
+(write), `learn enable|disable` and `off` require an interactive TTY.
+`AIPROOF_NON_INTERACTIVE=1` or `CI` set refuses them, so an agent cannot call them
+successfully (see `docs/THREAT_MODEL.md`).
 
 ## Testing
 
 `tests/test_tui.py` covers themes, layout-independent keys (including Cyrillic positions),
-escape-sequence decoding, ASCII fallback, the logo/banner and screen rendering smoke tests.
-Render snapshots use `rich`'s recording console. Known gaps: `/` filter and mouse handling
-are stubbed; document them rather than claim them.
-
-## Human-only actions
-
-`pause`, `resume`, `pin`, `checks` (write), `learn enable|disable` and `off` require an
-interactive TTY. `AIPROOF_NON_INTERACTIVE=1` or `CI` set refuses them, so an agent cannot
-call them successfully (see `docs/THREAT_MODEL.md`).
+multi-byte key reads, escape-sequence decoding, ASCII fallback (symbols, marker and table
+borders), the logo/banner and screen rendering smoke tests.

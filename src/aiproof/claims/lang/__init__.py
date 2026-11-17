@@ -23,11 +23,13 @@ _MODULES: tuple[ModuleType, ...] = (en, ru, uk, de, es, fr, pt, zh, ja, ko, tr)
 
 LANG_PACKS: dict[str, ModuleType] = {m.CODE: m for m in _MODULES}
 
-# Unicode script ranges used for cheap language detection.
+# Unicode script ranges used for cheap language detection. Japanese is checked
+# before Han because Japanese text always contains Han (Kanji) but usually also
+# kana; the kana range is the reliable discriminator.
 _SCRIPT_HINTS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("zh", re.compile(r"[\u4e00-\u9fff]")),
     ("ja", re.compile(r"[\u3040-\u30ff]")),
     ("ko", re.compile(r"[\uac00-\ud7af]")),
+    ("zh", re.compile(r"[\u4e00-\u9fff]")),
     ("ru", re.compile(r"[\u0400-\u04ff]")),
 )
 _UK_MARKERS = ("і", "ї", "є", "ґ", "тести проходять", "закомітив")

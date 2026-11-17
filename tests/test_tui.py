@@ -26,6 +26,25 @@ def test_cyrillic_keys_map_by_position() -> None:
 def test_escape_sequences_map() -> None:
     assert keys.key_name(b"\x1b[A") == "up"
     assert keys.key_name(b"\r") == "enter"
+    assert keys.SEQUENCES[b"\x1b[1~"] == "home"
+    assert keys.SEQUENCES[b"\x1b[4~"] == "end"
+
+
+def test_read_utf8_char_multibyte() -> None:
+    """The POSIX reader must consume all UTF-8 bytes of a Cyrillic key."""
+    import os
+
+    from aiproof.tui.app import _read_utf8_char
+
+    read_fd, write_fd = os.pipe()
+    try:
+        os.write(write_fd, "ц".encode())
+        assert _read_utf8_char(read_fd) == "ц".encode()
+        os.write(write_fd, b"q")
+        assert _read_utf8_char(read_fd) == b"q"
+    finally:
+        os.close(read_fd)
+        os.close(write_fd)
 
 
 def test_ascii_fallback(monkeypatch) -> None:
@@ -50,6 +69,31 @@ def test_menu_has_all_entries() -> None:
     theme = get_theme("green")
     table = widgets.menu(theme, selected=0, lang="en")
     assert table.row_count == len(widgets.MENU)
+
+
+def test_ascii_safe_replaces_symbols() -> None:
+    from aiproof.tui.theme import ascii_safe
+
+    assert ascii_safe("✓ ● ❯ · — ↑") == "v * > - - ^"
+    assert ascii_safe("ok Привет") == "ok Привет"
+
+
+def test_data_table_uses_ascii_box() -> None:
+    from rich import box
+
+    theme = get_theme("green")
+    assert widgets.data_table("t", theme=theme, ascii_only=True).box is box.ASCII
+    assert widgets.data_table("t", theme=theme, ascii_only=False).box is box.HEAVY_HEAD
+
+
+def test_menu_ascii_marker() -> None:
+    from rich.console import Console
+
+    console = Console(record=True, width=100, force_terminal=False)
+    console.print(widgets.menu(get_theme("mono"), selected=0, lang="en", ascii_only=True))
+    text = console.export_text()
+    assert ">" in text
+    assert "❯" not in text
 
 
 def test_header_renders() -> None:

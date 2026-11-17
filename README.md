@@ -41,7 +41,8 @@ AiProof verified your claims and found problems:
 Fix the above, then run the full test command and report exact counts.
 ```
 
-Everything is deterministic and local. No network calls, no telemetry, no cloud.
+Everything is deterministic and local. No telemetry, no cloud; the only network call is
+the explicit `aiproof update --check`.
 
 ---
 
@@ -82,7 +83,8 @@ AiProof verified your claims and found problems:
 | (integrity) learned rules | rules compiled from your corrections (see below) are not violated |
 
 Claims are extracted **deterministically** from the agent's final message in 11 languages
-(en, ru, uk, de, es, fr, pt-BR, zh-CN, ja, ko, tr) — no model in the loop.
+(en, ru, uk, de, es, fr, pt-BR, zh-CN, ja, ko, tr) — no model in the loop. The claim
+language packs use the short codes `pt`/`zh`; only the UI catalogs are `pt_br`/`zh_cn`.
 
 See [`docs/CHECKS.md`](docs/CHECKS.md) and [`docs/CLAIMS.md`](docs/CLAIMS.md).
 
@@ -150,7 +152,8 @@ written next to any file it touches.
 AiProof is deliberately honest about how deeply it can integrate with each tool:
 
 - **native-hooks** — can observe lifecycle events and **block** a bad "done" (Claude Code is
-  verified; others are planned pending vendor-doc verification).
+  verified; other native-hook entries are planned or unverified pending vendor-doc
+  verification).
 - **mcp-only** — exposes read-only self-check tools over MCP; cannot block.
 - **wrapper** — post-hoc verification via `aiproof run -- <agent command>`.
 
@@ -161,7 +164,8 @@ AiProof is deliberately honest about how deeply it can integrate with each tool:
 
 > Integration details are marked `verified` **only** after the vendor's current
 > documentation has been read and dated. We never invent hook event names, config paths or
-> flags. Currently only Claude Code is `verified` (2026-11-16).
+> flags. Currently Claude Code (native hooks) and the generic wrapper are `verified`
+> (2026-11-16).
 
 ### Wrapper mode works everywhere
 
@@ -172,7 +176,8 @@ aiproof run -- aider --message "fix the failing test"
 ```
 
 AiProof snapshots git before/after and prints a post-hoc verdict of the agent's claims.
-Wrapper mode is **post-hoc**: it cannot block a running session.
+Wrapper mode is **post-hoc**: it cannot block a running session. Its exit code mirrors the
+agent's, except that a blocking verdict returns `1` when the agent exited `0`.
 
 ---
 
@@ -233,7 +238,7 @@ monorepo latency check, the gate cap, and a learned-rule block. See
 | --- | --- |
 | detection rate | **96%** (25/26 positives; the miss is scenario 5, below) |
 | false-positive rate | **0%** (5/5 negatives correctly allowed) |
-| median hook latency | **~55–80 ms** (host-dependent) |
+| median hook latency | **~55–90 ms** (host-dependent) |
 
 ---
 
@@ -246,19 +251,19 @@ what it does and does not do:
   (read-only self-help) or `wrapper` (post-hoc). See
   [`docs/AGENTS_SUPPORT.md`](docs/AGENTS_SUPPORT.md).
 - **The ledger detects tampering, it does not prevent it.** A plain hash chain stops *silent*
-  edits; an attacker with the optional HMAC key can still forge. Receipts are **not**
-  cryptographically signed yet — that is a reserved `[sign]` extra. See
-  [`docs/LEDGER.md`](docs/LEDGER.md) and [`docs/SIGNING.md`](docs/SIGNING.md).
+  edits; an attacker who can rewrite every later record can forge it. HMAC and receipt
+  signatures are **not implemented yet** — they are reserved (`paths.key_path()`, `[sign]`
+  extra). See [`docs/LEDGER.md`](docs/LEDGER.md) and [`docs/SIGNING.md`](docs/SIGNING.md).
 - **Deny lists are heuristics.** A determined agent with shell access can defeat string
   matching; `config_integrity` re-verifies protected files at Stop as a second line.
 - **One honest miss.** Scenario 5 (a hardcoded lookup table replacing logic) is a heuristic
   and is not caught — it is listed here, not hidden.
 - **Backtest false positives are a lower bound.** Without labelled history AiProof counts only
   explicit `aiproof:ignore` waivers. It says so in every result.
-- **TUI gaps.** `/` filter and mouse handling are stubbed; the minimum supported width is 60
-  columns.
-- **Only en/ru catalogs are reviewed.** Nine catalogs ship as machine drafts and fall back to
-  English per key.
+- **TUI screens are mostly read-only.** The CLI has the full actions (`checks`, `scan`,
+  `learn`, `setup`, …); the TUI currently renders them without edits. `/` filter and mouse
+  handling are not implemented. See [`docs/TUI.md`](docs/TUI.md).
+- **Only en/ru catalogs are reviewed.** Nine catalogs ship complete but as machine drafts.
 
 Full analysis: [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md).
 
@@ -287,7 +292,7 @@ evidence you can inspect, on your machine.
 
 ## Privacy
 
-- 100% local. No network, no analytics.
+- 100% local by default. No analytics; the only network call is `aiproof update --check`.
 - The ledger stores **redacted** payloads, never raw source and never secrets.
 - Test counts / commit hashes are the only "code-adjacent" facts retained, and they live
   under `~/.aiproof/projects/<hash>/`.

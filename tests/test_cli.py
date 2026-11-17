@@ -96,6 +96,8 @@ def test_help_when_no_command_and_not_tty(monkeypatch: pytest.MonkeyPatch) -> No
 def _isolate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("AIPROOF_DATA_DIR", str(tmp_path / "data"))
+    # Output assertions are English; force it instead of relying on the host locale.
+    monkeypatch.setenv("AIPROOF_LANG", "en")
 
 
 def test_checks_command(
@@ -116,10 +118,51 @@ def test_checks_change_refused_without_tty(
     assert "interactive human terminal" in capsys.readouterr().out
 
 
+def test_init_installs_claude_hooks_even_with_only_mcp(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: a repo that only has ``.mcp.json`` must still get Stop hooks.
+
+    ``detect_all`` would otherwise return only the MCP adapter, so ``init``
+    reported success while leaving the gate silently inactive.
+    """
+    _isolate(tmp_path, monkeypatch)
+    (tmp_path / ".mcp.json").write_text('{"mcpServers": {}}\n', encoding="utf-8")
+    assert main(["init"]) == 0
+    settings = json.loads((tmp_path / ".claude" / "settings.json").read_text())
+    assert {"SessionStart", "PreToolUse", "PostToolUse", "Stop"} <= set(settings["hooks"])
+
+
+def test_uninstall_removes_hooks_when_only_mcp_detected(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _isolate(tmp_path, monkeypatch)
+    (tmp_path / ".mcp.json").write_text('{"mcpServers": {}}\n', encoding="utf-8")
+    assert main(["init"]) == 0
+    assert main(["uninstall"]) == 0
+    remaining = json.loads((tmp_path / ".claude" / "settings.json").read_text())
+    assert "hooks" not in remaining
+
+
 def test_install_list_ides(capsys: pytest.CaptureFixture[str]) -> None:
     assert main(["install", "--list-ides"]) == 0
     out = capsys.readouterr().out
     assert "claude-code" in out and "wrapper" in out
+
+
+def test_theme_rejects_unknown(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _isolate(tmp_path, monkeypatch)
+    assert main(["theme", "chartreuse"]) == 2
+    assert "unknown theme" in capsys.readouterr().out
+
+
+def test_init_accepts_level_flag(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _isolate(tmp_path, monkeypatch)
+    assert main(["init", "--level", "user", "--dry-run"]) == 0
 
 
 def test_learn_empty(

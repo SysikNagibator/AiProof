@@ -40,7 +40,8 @@ user's sense of "done". This document describes how the pieces fit together.
                        ┌──────────────────────────────────────────────┐
                        │ checks/  (commit_exists, file_changed,        │
                        │           tests_ran, test_tamper, secrets,    │
-                       │           todo_integrity, config_integrity)   │
+                       │           todo_integrity, config_integrity,  │
+                       │           learn_rules)                       │
                        └───────────────┬──────────────────────────────┘
                                        ▼
                        ┌──────────────────────────────────────────────┐

@@ -62,16 +62,23 @@ def run(root: Path, lang: str = "en") -> list[Line]:
         )
     )
 
-    settings_file = root / ".claude" / "settings.json"
-    if settings_file.is_file():
-        text = settings_file.read_text(encoding="utf-8")
-        installed = "aiproof hook" in text
-        state = t("doc.installed", lang) if installed else t("doc.not_installed", lang)
+    state, path = ClaudeCodeAdapter().hook_status(root)
+    if state == "installed":
+        lines.append(Line(OK, t("doc.hooks", lang, state=t("doc.installed", lang))))
+    elif state == "malformed":
         lines.append(
             Line(
-                OK if installed else WARN,
-                t("doc.hooks", lang, state=state),
-                "" if installed else t("doc.hooks_hint", lang),
+                WARN,
+                t("doc.settings_malformed", lang, path=path or ""),
+                t("doc.settings_malformed_hint", lang),
+            )
+        )
+    elif state == "not_installed":
+        lines.append(
+            Line(
+                WARN,
+                t("doc.hooks", lang, state=t("doc.not_installed", lang)),
+                t("doc.hooks_hint", lang),
             )
         )
     else:

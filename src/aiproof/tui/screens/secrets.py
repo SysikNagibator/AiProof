@@ -12,11 +12,12 @@ from aiproof.i18n import t
 from aiproof.redact.redactor import load_allowlist
 from aiproof.redact.scanner import scan_diff
 from aiproof.tui.theme import Theme
+from aiproof.tui.widgets import data_table
 
 
 def render(root: Path, settings: Settings, lang: str, theme: Theme, ascii_only: bool) -> Table:
     """Render secret findings from the current diff."""
-    table = Table(title=t("menu.secrets", lang), border_style=theme.primary)
+    table = data_table(t("menu.secrets", lang), theme=theme, ascii_only=ascii_only)
     table.add_column(t("tui.type", lang))
     table.add_column(t("tui.location", lang))
     table.add_column(t("tui.fingerprint", lang))

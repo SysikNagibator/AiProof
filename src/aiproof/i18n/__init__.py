@@ -62,8 +62,29 @@ def _load(code: str) -> dict[str, str]:
     return flat
 
 
+@cache
+def _meta(code: str) -> dict[str, Any]:
+    """Return a catalog's ``[meta]`` table (empty when missing/invalid)."""
+    path = CATALOG_DIR / f"{code}.toml"
+    if not path.is_file():
+        return {}
+    try:
+        raw = tomllib.loads(path.read_text(encoding="utf-8"))
+    except (tomllib.TOMLDecodeError, UnicodeDecodeError, OSError):
+        return {}
+    meta = raw.get("meta")
+    return meta if isinstance(meta, dict) else {}
+
+
 def is_reviewed(code: str) -> bool:
-    """Return True when a catalog is human-reviewed (not machine-drafted)."""
+    """Return True when a catalog is human-reviewed (not machine-drafted).
+
+    The catalog's own ``[meta] reviewed`` flag is authoritative; if it is absent
+    we fall back to the shipped-language list.
+    """
+    value = _meta(code).get("reviewed")
+    if isinstance(value, bool):
+        return value
     return code == SOURCE_LANG or code not in _NON_REVIEWED
 
 
@@ -115,10 +136,10 @@ def detect_language() -> str:
     return SOURCE_LANG
 
 
-def t(key: str, lang: str | None = None, **vars_: object) -> str:
-    """Translate *key*; fall back to English; interpolate ``{named}`` vars."""
+def t(message_key: str, lang: str | None = None, **vars_: object) -> str:
+    """Translate *message_key*; fall back to English; interpolate ``{named}`` vars."""
     code = lang or detect_language()
-    template = _load(code).get(key) or _load(SOURCE_LANG).get(key) or key
+    template = _load(code).get(message_key) or _load(SOURCE_LANG).get(message_key) or message_key
     try:
         return template.format(**vars_)
     except (KeyError, IndexError, ValueError):

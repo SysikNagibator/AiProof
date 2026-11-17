@@ -38,21 +38,39 @@ def render_block(rules: list[Rule] | tuple[Rule, ...], lang: str = "en") -> str:
 
 
 def upsert_block(existing: str, block: str) -> str:
-    """Replace the marker block in *existing*, or append it when absent."""
+    """Replace the marker block in *existing*, or append it when absent.
+
+    Idempotent even when the file contains a stray end marker before the block:
+    stray markers are removed before appending so repeated runs do not grow the
+    file.
+    """
     start = existing.find(MARKER_START)
-    end = existing.find(MARKER_END)
-    if start != -1 and end != -1 and end > start:
-        return existing[:start] + block + existing[end + len(MARKER_END) :]
-    if not existing.strip():
+    if start != -1:
+        end = existing.find(MARKER_END, start + len(MARKER_START))
+        if end != -1:
+            return existing[:start] + block + existing[end + len(MARKER_END) :]
+        # A start marker without an end: treat the rest as our (damaged) block.
+        return existing[:start] + block + "\n"
+    cleaned = existing.replace(MARKER_END, "").rstrip()
+    if not cleaned:
         return block + "\n"
-    return existing.rstrip() + "\n\n" + block + "\n"
+    return cleaned + "\n\n" + block + "\n"
+
+
+def _ensure_inside(root: Path, target: str) -> Path:
+    """Resolve *target* and refuse anything outside *root*."""
+    root_resolved = root.resolve()
+    path = (root / target).resolve()
+    if path != root_resolved and not path.is_relative_to(root_resolved):
+        raise ValueError(f"export target is outside the project: {target}")
+    return path
 
 
 def write_export(
     root: Path, rules: list[Rule] | tuple[Rule, ...], *, target: str = "AGENTS.md", lang: str = "en"
 ) -> tuple[Path, bool]:
     """Write the export block; returns ``(path, changed)``."""
-    path = root / target
+    path = _ensure_inside(root, target)
     original = path.read_text(encoding="utf-8") if path.is_file() else ""
     updated = upsert_block(original, render_block(rules, lang))
     if updated == original:

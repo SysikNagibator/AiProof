@@ -11,17 +11,22 @@ from aiproof.config import Settings
 from aiproof.i18n import t
 from aiproof.ledger.store import LedgerStore
 from aiproof.tui.theme import Theme
+from aiproof.tui.widgets import data_table
 
 LIMIT = 30
 
 
-def _detail(record: dict[str, Any]) -> str:
+def _detail(record: dict[str, Any], lang: str) -> str:
     payload = record.get("payload", {})
     if not isinstance(payload, dict):
         return ""
     event = record.get("event")
     if event == "gate_decision":
-        return "BLOCK" if payload.get("block") else "ok"
+        return (
+            t("status.verdict_blocked", lang)
+            if payload.get("block")
+            else t("status.verdict_verified", lang)
+        )
     if event == "claims_extracted":
         return f"claims={payload.get('count')}"
     if event in ("tool_pre", "tool_post"):
@@ -35,7 +40,7 @@ def _detail(record: dict[str, Any]) -> str:
 
 def render(root: Path, settings: Settings, lang: str, theme: Theme, ascii_only: bool) -> Table:
     """Render recent events (refresh with R)."""
-    table = Table(title=t("menu.live_feed", lang), border_style=theme.primary)
+    table = data_table(t("menu.live_feed", lang), theme=theme, ascii_only=ascii_only)
     table.add_column(t("tui.time", lang), style=theme.dim)
     table.add_column(t("tui.event", lang))
     table.add_column(t("tui.session", lang), style=theme.dim)
@@ -55,7 +60,7 @@ def render(root: Path, settings: Settings, lang: str, theme: Theme, ascii_only: 
             str(record.get("ts", ""))[11:19],
             event,
             str(record.get("session", ""))[:12],
-            _detail(record),
+            _detail(record, lang),
             style=style,
         )
     return table

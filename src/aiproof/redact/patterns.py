@@ -37,16 +37,28 @@ SECRET_PATTERNS: tuple[Pattern, ...] = (
     _p("stripe_key", r"\b(?:sk|pk|rk)_(?:live|test)_[0-9A-Za-z]{16,}\b"),
     _p("twilio_key", r"\bSK[0-9a-fA-F]{32}\b"),
     _p("sendgrid_key", r"\bSG\.[A-Za-z0-9_\-]{16,}\.[A-Za-z0-9_\-]{16,}\b"),
-    _p("openai_key", r"\bsk-(?:proj-|svcacct-)?[A-Za-z0-9_\-]{20,}\b"),
     _p("anthropic_key", r"\bsk-ant-[A-Za-z0-9_\-]{20,}\b"),
+    _p("openai_key", r"\bsk-(?!ant-)(?:proj-|svcacct-)?[A-Za-z0-9_\-]{20,}\b"),
+    _p("huggingface_token", r"\bhf_[A-Za-z0-9]{30,}\b"),
     _p("google_api_key", r"\bAIza[0-9A-Za-z_\-]{35}\b"),
     _p("npm_token", r"\bnpm_[A-Za-z0-9]{36}\b"),
     _p("pypi_token", r"\bpypi-AgEIcHlwaS5vcmc[A-Za-z0-9_\-]{20,}\b"),
     _p("jwt", r"\beyJ[A-Za-z0-9_\-]{4,}\.[A-Za-z0-9_\-]{4,}\.[A-Za-z0-9_\-]{4,}\b"),
+    _p("twilio_account_sid", r"\bAC[0-9a-fA-F]{32}\b"),
+    _p(
+        "discord_bot_token",
+        r"\b(?:MT|Nz|Mj|OD|M[TRJ])[A-Za-z0-9_\-]{22,26}\.[A-Za-z0-9_\-]{6}"
+        r"\.[A-Za-z0-9_\-]{27,40}\b",
+    ),
+    _p("slack_webhook", r"https://hooks\.slack\.com/services/[A-Za-z0-9/_-]{20,}"),
+    _p("sentry_dsn", r"https://[0-9a-f]{32}@[A-Za-z0-9.-]+/\d+"),
     _p(
         "private_key_block",
-        r"-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----[\s\S]+?-----END "
-        r"(?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----",
+        # The body class excludes ``-`` so an unterminated BEGIN cannot make the
+        # engine rescan arbitrarily far: a PEM body is base64/whitespace only.
+        r"-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----"
+        r"[A-Za-z0-9+/=\s]{0,16384}?"
+        r"-----END (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----",
     ),
     _p(
         "db_url",
@@ -62,7 +74,6 @@ SECRET_PATTERNS: tuple[Pattern, ...] = (
         1,
     ),
     _p("npmrc_token", r"(?m)^\s*//[^\s]+:_authToken\s*=\s*(\S+)", 1),
-    _p("pypirc_password", r"(?im)^\s*password\s*=\s*(\S+)", 1),
 )
 
 # Variable names that hint a nearby high-entropy token is a secret.

@@ -36,16 +36,16 @@ pip install "aiproof-sysik[dev]"
 * **No web framework.** The MCP server speaks the stdio protocol over `json` by hand.
 * **No async runtime.** Hooks are short-lived processes; a `subprocess` call with a timeout
   is simpler and safer than an event loop.
-* **No keyring at import time.** `keyring` is used opportunistically for the optional HMAC
-  key and degrades to a `0600` file when absent.
-* **No network client.** The only network call is `aiproof update` (and the optional
-  once-a-day *check*), implemented with `urllib.request` and an explicit consent step.
+* **No keyring at import time.** A `keyring`-backed HMAC key is planned but not
+  implemented yet; it would degrade to a `0600` file when absent.
+* **No network client.** The only network call is `aiproof update --check`, implemented
+  with `urllib.request` and an explicit consent step. Nothing runs in the background.
 
 ## Supply-chain posture
 
 * Version floors are set; no upper caps except where a major rewrite is expected.
-* `aiproof update` verifies **SHA-256 from the release manifest**, not just a downloaded
-  file header, before replacing anything, and supports rollback.
+* `aiproof update --check` fetches release metadata. `verify_sha256()` can check a file
+  against a manifest, but the download/replace/rollback flow is **not implemented yet**.
 * CI runs `ruff`, `mypy --strict` and `pytest` on Linux/macOS/Windows for Python 3.11–3.13.
 
 ## Dev environment

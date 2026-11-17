@@ -15,7 +15,7 @@ from aiproof.adapters.registry import Status, Support
 from aiproof.bench.runner import run_scenarios
 from aiproof.checks.base import CheckContext
 from aiproof.claims.extractor import extract_claims
-from aiproof.config import STRICTNESS_PRESETS, load_settings, merge_pinned, read_pinned
+from aiproof.config import STRICTNESS_PRESETS, THEMES, load_settings, merge_pinned, read_pinned
 from aiproof.gate.gate import decide
 from aiproof.guard.pin import HumanOnlyError
 from aiproof.i18n import KNOWN_LANGS, available, detect_language, is_reviewed, t
@@ -40,6 +40,11 @@ def _json(data: object) -> None:
     _emit(json.dumps(data, indent=2, ensure_ascii=False, default=str))
 
 
+def _say(key: str, **vars_: object) -> None:
+    """Emit one localized CLI line from the ``cli_out`` namespace."""
+    _emit(t(f"cli_out.{key}", detect_language(), **vars_))
+
+
 def _root() -> Path:
     return paths.project_root()
 
@@ -54,7 +59,7 @@ def cmd_version(_args: argparse.Namespace) -> int:
 
 def cmd_init(args: argparse.Namespace) -> int:
     root = _root()
-    report = install.init_project(root, dry_run=args.dry_run)
+    report = install.init_project(root, dry_run=args.dry_run, level=args.level)
     lang = detect_language()
     if args.json:
         _json(
@@ -62,6 +67,7 @@ def cmd_init(args: argparse.Namespace) -> int:
                 "project": report.project,
                 "detected": report.detected,
                 "changed": report.changed,
+                "skipped": report.skipped,
                 "pinned": report.pinned_sha256,
             }
         )
@@ -72,7 +78,11 @@ def cmd_init(args: argparse.Namespace) -> int:
     for changed in report.changed:
         _emit(f"  + {changed}")
     for backup in report.backups:
-        _emit(f"  ~ backup {backup}")
+        _emit("  ~ " + t("cli_out.backup", lang, path=backup))
+    if report.skipped and not args.dry_run:
+        for skipped in report.skipped:
+            _emit("  ! " + t("cli_out.skipped_malformed", lang, path=skipped))
+        return 1
     return 0
 
 
@@ -109,12 +119,13 @@ def cmd_status(args: argparse.Namespace) -> int:
     _emit(f"{dot} AiProof by SYSIK — {t('status.armed', lang)}")
     _emit(f"  {t('status.mode', lang, mode=settings.strictness)}")
     _emit(f"  {t('status.project', lang, project=data['project'])}")
-    _emit(f"  pinned: {'ok' if data['pinned_ok'] else data['pinned_reason']}")
+    state = t("doctor.ok", lang) if data["pinned_ok"] else str(data["pinned_reason"])
+    _emit(f"  {t('tui.pinned', lang)}: {state}")
     agents = data.get("agents")
     agents_text = ", ".join(str(a) for a in agents) if isinstance(agents, list) else ""
-    _emit(f"  agents: {agents_text or 'none detected'}")
+    _emit(f"  {t('tui.agents', lang)}: {agents_text or t('cli_out.none_detected', lang)}")
     if data["paused"]:
-        _emit("  ⏸ paused")
+        _emit(t("cli_out.paused", lang))
     return 0
 
 
@@ -136,7 +147,7 @@ def cmd_sessions(args: argparse.Namespace) -> int:
     for sid in sessions[-20:]:
         _emit(sid)
     if not sessions:
-        _emit("no sessions recorded yet")
+        _emit(t("tui.no_sessions_recorded", detect_language()))
     return 0
 
 
@@ -144,7 +155,7 @@ def cmd_show(args: argparse.Namespace) -> int:
     root = _root()
     session = args.session or LedgerStore(root).last_session()
     if session is None:
-        _emit("no sessions recorded yet")
+        _emit(t("tui.no_sessions_recorded", detect_language()))
         return 1
     receipt = build_receipt(root, session)
     fmt = args.format
@@ -251,7 +262,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
         _json(payload)
         return 0
     if not findings:
-        _emit("no secrets found")
+        _emit(t("tui.no_secrets", detect_language()))
         return 0
     for finding in findings:
         _emit(f"{finding.type}  {finding.path}:{finding.line}  [{finding.fingerprint}]")
@@ -289,7 +300,7 @@ def cmd_pin(args: argparse.Namespace) -> int:
     except HumanOnlyError as exc:
         _emit(str(exc))
         return 2
-    _emit(f"pinned: {digest[:16]}…")
+    _emit(f"{t('tui.pinned', detect_language())}: {digest[:16]}…")
     return 0
 
 
@@ -299,7 +310,7 @@ def cmd_pause(args: argparse.Namespace) -> int:
     except HumanOnlyError as exc:
         _emit(str(exc))
         return 2
-    _emit(f"paused for {args.minutes} min (until {until})")
+    _say("paused_for", minutes=args.minutes, until=until)
     return 0
 
 
@@ -309,7 +320,7 @@ def cmd_resume(_args: argparse.Namespace) -> int:
     except HumanOnlyError as exc:
         _emit(str(exc))
         return 2
-    _emit("resumed")
+    _say("resumed")
     return 0
 
 
@@ -340,32 +351,42 @@ def cmd_agents(args: argparse.Namespace) -> int:
 
 def cmd_lang(args: argparse.Namespace) -> int:
     if not args.code:
-        _emit(f"current: {detect_language()}")
+        _emit(f"{t('cli_out.current', detect_language())}: {detect_language()}")
         for code in KNOWN_LANGS:
             if code in available():
-                _emit(f"  {code}{'' if is_reviewed(code) else ' (machine-translated)'}")
+                suffix = (
+                    ""
+                    if is_reviewed(code)
+                    else " " + t("tui.machine_translated", detect_language())
+                )
+                _emit(f"  {code}{suffix}")
         return 0
     _set_global("language", args.code)
-    _emit(f"language set to {args.code}")
+    _say("lang_set", code=args.code)
     return 0
 
 
 def cmd_theme(args: argparse.Namespace) -> int:
     if not args.name:
-        _emit("themes: green, mono, amber")
+        _say("themes", themes=", ".join(THEMES))
         return 0
+    if args.name not in THEMES:
+        _say("unknown_theme", name=args.name, themes=", ".join(THEMES))
+        return 2
     _set_global("theme", args.name)
-    _emit(f"theme set to {args.name}")
+    _say("theme_set", name=args.name)
     return 0
 
 
 def cmd_logs(args: argparse.Namespace) -> int:
     target = paths.log_path()
     if not target.is_file():
-        _emit("no logs yet")
+        _emit(t("tui.no_logs", detect_language()))
         return 0
     lines = target.read_text(encoding="utf-8").splitlines()
-    for line in lines[-args.lines :]:
+    if args.lines > 0:
+        lines = lines[-args.lines :]
+    for line in lines:
         _emit(line)
     return 0
 
@@ -374,16 +395,28 @@ def cmd_update(args: argparse.Namespace) -> int:
     from aiproof.maintenance import update
 
     if not args.check:
-        _emit("aiproof update --check  (network; explicit consent required to install)")
+        _say("update_hint")
         return 0
     info = update.check()
     if args.json:
-        _json({"current": info.current, "latest": info.latest, "newer": info.newer})
-        return 0
-    _emit(
-        f"current {info.current} · latest {info.latest} · "
-        f"{'update available' if info.newer else 'up to date'}"
+        _json(
+            {
+                "current": info.current,
+                "latest": info.latest,
+                "newer": info.newer,
+                "error": info.error,
+            }
+        )
+        return 0 if info.ok else 1
+    if not info.ok:
+        _say("update_failed", error=info.error)
+        return 1
+    state = (
+        t("cli_out.update_available", detect_language())
+        if info.newer
+        else t("cli_out.up_to_date", detect_language())
     )
+    _say("update_status", current=info.current, latest=info.latest, state=state)
     return 0
 
 
@@ -406,8 +439,11 @@ def cmd_correct(args: argparse.Namespace) -> int:
     if getattr(args, "json", False):
         _json(correction.as_dict() | {"created": created})
     else:
-        state = "recorded" if created else "already recorded"
-        _emit(f"{correction.id}: {state} — {correction.text}")
+        state = t(
+            "cli_out.correction_new" if created else "cli_out.correction_duplicate",
+            detect_language(),
+        )
+        _say("correction_recorded", id=correction.id, state=state, text=correction.text)
     return 0
 
 
@@ -457,7 +493,7 @@ def cmd_learn(args: argparse.Namespace) -> int:
                 }
             )
             return 0
-        _emit(f"corrections: {len(corrections)} · rules: {len(rules)}")
+        _say("learn_summary", corrections=len(corrections), rules=len(rules))
         for correction in corrections:
             _emit(f"  {correction.id} [{correction.topic}] {correction.text}")
         for existing_rule in rules:
@@ -467,7 +503,7 @@ def cmd_learn(args: argparse.Namespace) -> int:
                 f"{existing_rule.description}"
             )
         if not corrections and not rules:
-            _emit('  none yet — record one with `aiproof correct "..."`')
+            _emit("  " + t("cli_out.learn_none", detect_language()))
         return 0
 
     if action == "compile":
@@ -481,18 +517,30 @@ def cmd_learn(args: argparse.Namespace) -> int:
             _json([candidate.as_dict() for candidate in candidates])
             return 0
         if not candidates:
-            _emit("nothing to compile")
+            _say("learn_nothing")
             return 0
+        lang = detect_language()
         for candidate in candidates:
-            mark = "compiled" if candidate.compiled else "advisory"
-            _emit(f"  {candidate.correction_id}: {mark} — {candidate.reason}")
+            mark = t(
+                "cli_out.learn_compiled" if candidate.compiled else "cli_out.learn_advisory", lang
+            )
+            _emit(
+                "  "
+                + t(
+                    "cli_out.learn_candidate",
+                    lang,
+                    id=candidate.correction_id,
+                    state=mark,
+                    reason=candidate.reason,
+                )
+            )
             if candidate.rule is not None:
                 _emit(
                     f"      {candidate.rule.id} ({candidate.rule.severity}) "
                     f"scope={candidate.rule.scope}"
                 )
         if args.write and any(candidate.compiled for candidate in candidates):
-            _emit("saved as disabled rules; enable with `aiproof learn enable <id>`")
+            _say("learn_saved")
         return 0
 
     if action in ("enable", "disable"):
@@ -502,12 +550,12 @@ def cmd_learn(args: argparse.Namespace) -> int:
             _emit(str(exc))
             return 2
         if not args.rule_id:
-            _emit(f"usage: aiproof learn {action} <rule-id>")
+            _say("learn_usage", action=action)
             return 2
         try:
             rules = set_enabled(rules, args.rule_id, action == "enable")
         except KeyError:
-            _emit(f"unknown rule: {args.rule_id}")
+            _say("unknown_rule", id=args.rule_id)
             return 1
         save_rules(paths.rules_path(root), rules)
         LedgerStore(root).append(
@@ -515,24 +563,28 @@ def cmd_learn(args: argparse.Namespace) -> int:
             {"rule": args.rule_id, "enabled": action == "enable"},
             session="human",
         )
-        _emit(f"{args.rule_id}: {'enabled' if action == 'enable' else 'disabled'}")
+        state = t("tui.enabled" if action == "enable" else "tui.disabled", detect_language())
+        _say("rule_toggled", id=args.rule_id, state=state)
         return 0
 
     if action == "backtest":
         if not args.rule_id:
-            _emit("usage: aiproof learn backtest <rule-id>")
+            _say("learn_backtest_usage")
             return 2
         rule = next((item for item in rules if item.id == args.rule_id), None)
         if rule is None:
-            _emit(f"unknown rule: {args.rule_id}")
+            _say("unknown_rule", id=args.rule_id)
             return 1
         result = backtest(root, rule)
         if getattr(args, "json", False):
             _json(result.as_dict())
             return 0
-        _emit(
-            f"{rule.id}: would-have-caught {result.would_have_caught} of "
-            f"{result.commits_scanned} commits · false-positives {result.false_positives}"
+        _say(
+            "learn_backtest",
+            id=rule.id,
+            caught=result.would_have_caught,
+            scanned=result.commits_scanned,
+            false_positives=result.false_positives,
         )
         for sample in result.samples:
             _emit(f"  {sample['path']}:{sample['line']} {sample['text']}")
@@ -541,11 +593,15 @@ def cmd_learn(args: argparse.Namespace) -> int:
 
     if action == "export":
         target = args.target or "AGENTS.md"
-        path, changed = write_export(root, rules, target=target, lang=detect_language())
-        _emit(f"{'wrote' if changed else 'unchanged'}: {path}")
+        try:
+            path, changed = write_export(root, rules, target=target, lang=detect_language())
+        except ValueError as exc:
+            _emit(str(exc))
+            return 2
+        _say("export_wrote" if changed else "export_unchanged", path=path)
         return 0
 
-    _emit(f"unknown action: {action}")
+    _say("unknown_action", action=action)
     return 2
 
 
@@ -566,7 +622,7 @@ def cmd_checks(args: argparse.Namespace) -> int:
         enabled = list(settings.enabled_checks)
         for name in args.enable or []:
             if name not in ALL_CHECK_NAMES:
-                _emit(f"unknown check: {name}")
+                _say("unknown_check", name=name)
                 return 1
             if name not in enabled:
                 enabled.append(name)
@@ -594,7 +650,7 @@ def cmd_checks(args: argparse.Namespace) -> int:
             }
         )
         return 0
-    _emit(f"strictness: {settings.strictness}")
+    _emit(f"{t('tui.strictness', detect_language())}: {settings.strictness}")
     for name in ALL_CHECK_NAMES:
         mark = "x" if name in settings.enabled_checks else " "
         _emit(f"  [{mark}] {name}")
@@ -641,19 +697,22 @@ def cmd_setup(args: argparse.Namespace) -> int:
 
     root = _root()
     detected = [adapter.id for adapter in detect_all(root)]
-    _emit(f"project: {root}")
-    _emit(f"agents detected: {', '.join(detected) or 'none (claude-code will be assumed)'}")
+    _say("project", project=root)
+    _say(
+        "agents_detected",
+        agents=", ".join(detected) or t("cli_out.agents_assumed", detect_language()),
+    )
     if args.dry_run or not args.yes:
-        _emit("plan: install hooks, write pins, create .aiproof/allow.toml, run self-test")
-        _emit("re-run with --yes to apply (or use `aiproof init`)")
+        _say("setup_plan")
+        _say("setup_rerun")
         return 0
 
     report = install.init_project(root)
     for changed in report.changed:
         _emit(f"  + {changed}")
     for backup in report.backups:
-        _emit(f"  ~ backup {backup}")
-    _emit(f"pinned: {report.pinned_sha256[:16]}...")
+        _emit("  ~ " + t("cli_out.backup", detect_language(), path=backup))
+    _emit(f"{t('tui.pinned', detect_language())}: {report.pinned_sha256[:16]}...")
 
     settings = merge_pinned(load_settings(root), read_pinned(root))
     claims = extract_claims("all tests pass")
@@ -662,10 +721,10 @@ def cmd_setup(args: argparse.Namespace) -> int:
         agent_lang=settings.agent_message_language,
         integrity=False,
     )
-    _emit(
-        "self-test: false 'all tests pass' -> "
-        + ("blocked" if decision.block else "recorded only (non-blocking mode)")
+    state = t(
+        "cli_out.setup_blocked" if decision.block else "cli_out.setup_recorded", detect_language()
     )
+    _say("setup_self_test", state=state)
     return 0
 
 
@@ -683,33 +742,32 @@ def cmd_install(args: argparse.Namespace) -> int:
 
     targets = [agent.id for agent in AGENTS] if args.all else [args.ide] if args.ide else []
     if not targets:
-        _emit("usage: aiproof install --ide <id> | --all | --list-ides")
+        _say("install_usage")
         return 2
 
     known = {agent.id: agent for agent in AGENTS}
     for target in targets:
         target_agent = known.get(str(target))
         if target_agent is None:
-            _emit(f"unknown IDE: {target}")
+            _say("install_unknown_ide", name=target)
             return 1
         if target_agent.id == "claude-code":
             result = ClaudeCodeAdapter().install(root, dry_run=args.dry_run)
-            _emit(f"claude-code: hooks {'planned' if args.dry_run else 'installed'}")
+            state = t("cli_out.planned" if args.dry_run else "cli_out.installed", detect_language())
+            _say("install_hooks", state=state)
         elif target_agent.support in (Support.NATIVE_HOOKS, Support.MCP_ONLY):
             result = McpAdapter().install(root, dry_run=args.dry_run)
-            _emit(
-                f"{target_agent.id}: MCP entry in .mcp.json "
-                f"{'planned' if args.dry_run else 'written'}"
-            )
+            state = t("cli_out.planned" if args.dry_run else "cli_out.written", detect_language())
+            _say("install_mcp", agent=target_agent.id, state=state)
         else:
-            _emit(f"{target_agent.id}: wrapper mode — use `aiproof run -- {target_agent.id} ...`")
+            _say("install_wrapper", agent=target_agent.id)
             continue
         for changed in result.changed:
             _emit(f"  + {changed}")
         for backup in result.backups:
             _emit(f"  ~ backup {backup}")
         for skipped in result.skipped:
-            _emit(f"  = skipped {skipped}")
+            _emit("  = " + t("cli_out.install_skipped", detect_language(), path=skipped))
     return 0
 
 
@@ -724,7 +782,7 @@ def cmd_off(_args: argparse.Namespace) -> int:
         return 2
     for changed in install.uninstall_project(_root()):
         _emit(f"  - {changed}")
-    _emit("AiProof hooks removed. Emergency kill switch: AIPROOF_DISABLE=1")
+    _say("off_done")
     return 0
 
 
@@ -734,9 +792,12 @@ def cmd_keys(args: argparse.Namespace) -> int:
     if getattr(args, "json", False):
         _json(ACTIONS)
         return 0
-    _emit("key -> action (layout-independent, by physical position):")
+    _emit(t("cli_out.keys_title", detect_language()))
     for key in ("w", "ц", "s", "ы", "q", "й", "l", "д", "t", "е", "r", "к", "?", "/"):
-        _emit(f"  {key!r} -> {ACTIONS.get(key, '?')}")
+        _emit(
+            "  "
+            + t("cli_out.keys_line", detect_language(), key=repr(key), action=ACTIONS.get(key, "?"))
+        )
     return 0
 
 
@@ -798,6 +859,7 @@ def build_parser(lang: str | None = None) -> argparse.ArgumentParser:
 
     p_init = subs.add_parser("init", help=h("init"))
     p_init.add_argument("--dry-run", action="store_true")
+    p_init.add_argument("--level", choices=("project", "local", "user"), default="project")
     p_init.set_defaults(func=cmd_init)
 
     p_un = subs.add_parser("uninstall", help=h("uninstall"))

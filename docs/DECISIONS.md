@@ -56,9 +56,10 @@ precision. See `docs/LEARN.md`.
 
 ## D6 — Receipts have no cryptographic signature yet
 
-HMAC via an optional local key is available; ed25519 signing is a **reserved** `[sign]`
-extra and is not implemented. The `sign` extra is declared in `pyproject.toml` so the
-dependency exists when it lands.
+Neither HMAC nor ed25519 signing is implemented yet. The ledger is an unkeyed SHA-256 hash
+chain; `paths.key_path()` and the `[sign]` extra are reserved for the future. Ed25519
+signing is declared as a placeholder in `pyproject.toml` so the dependency exists when it
+lands.
 
 **Consequence:** receipts prove the chain is internally consistent and unmodified since
 writing, not authorship. This is stated in `docs/LEDGER.md`, `docs/SIGNING.md` and the
@@ -70,22 +71,29 @@ Wrapper mode observes git state and the process output, then runs the claim chec
 the process exits. There is no mid-session intervention for agents without hooks.
 
 **Consequence:** wrapper mode is a verdict, not a gate. It is labelled as such in the CLI
-output and docs.
+output and docs. The exit code is the agent's own, except that a blocking verdict returns
+`1` when the agent exited `0`, so CI can still fail on a false claim.
 
-## D8 — TUI filter and mouse handling are gaps
+## D8 — the TUI is read-only and has documented gaps
 
-`/` filter and mouse support are stubbed; the default layout hides descriptions below ~80
-columns and supports a 60-column minimum.
+The TUI renders status, live feed, sessions, receipts, checks, secrets, rules, settings,
+doctor, logs, updates and about, but most screens are **read-only**. Toggling checks,
+editing settings, secret allowlisting/redaction, rule enable/backtest/export, the doctor
+self-test, log filters, `/` filtering, mouse support and update installation are not
+implemented. The default layout hides descriptions below ~80 columns.
 
-**Consequence:** documented as gaps in `docs/TUI.md` rather than claimed as features.
+**Consequence:** every gap is listed in `docs/TUI.md` rather than claimed as a feature. The
+CLI is the non-interactive parity layer for the read-only views.
 
 ## D9 — Draft translations ship as `reviewed = false`
 
-Nine catalogs (uk, de, es, fr, pt_br, zh_cn, ja, ko, tr) ship as machine drafts at 11/62
-keys, falling back to English per key, with a "(machine-translated)" note.
+Nine catalogs (uk, de, es, fr, pt_br, zh_cn, ja, ko, tr) ship as machine drafts and set
+`[meta] reviewed = false`; they cover the full English key set (275 keys) rather than
+falling back per key. The UI appends a "(machine-translated)" note from `is_reviewed()`.
 
-**Consequence:** CI fails only for en/ru completeness. Adding a language is a copy, a
-translate and a `gen_catalog_report.py` run; reviewing it flips `reviewed` to `true`.
+**Consequence:** CI fails if any catalog misses a key or a placeholder. Adding a language
+is a copy, a translate and a `gen_catalog_report.py` run; reviewing it flips
+`[meta] reviewed` to `true` and the note disappears.
 
 ## D10 — `AIPROOF_*` environment namespace and `~/.aiproof/`
 

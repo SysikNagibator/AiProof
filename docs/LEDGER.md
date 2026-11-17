@@ -47,10 +47,13 @@ so `ledger verify` walks all segments in order.
 
 ## Event types
 
-`session_start`, `user_prompt` (redacted, off by default), `tool_pre`, `tool_post`,
-`file_snapshot`, `test_run`, `claims_extracted`, `check_result`, `gate_decision`,
-`tamper_attempt`, `secret_found` (type + location + fingerprint only), `correction`,
-`rule_hit`, `rule_toggle`, `internal_error`, `pause`, `resume`.
+Emitted today: `session_start`, `tool_pre`, `tool_post`, `file_snapshot`,
+`claims_extracted`, `check_result`, `gate_decision`, `tamper_attempt`, `correction`,
+`rule_toggle`, `pause`, `resume`.
+
+Reserved (readers accept them, but no code path emits them yet): `user_prompt`
+(redacted, off by default), `test_run`, `secret_found`, `rule_hit`, `internal_error`.
+`secret_found` findings currently travel inside `check_result`/`gate_decision`.
 
 ## Redaction before writing
 
@@ -83,13 +86,12 @@ chain BROKEN at seq 133: prev mismatch
 
 A plain hash chain prevents *silent* edits: changing any record breaks every later hash,
 and an attacker who edits one record must also recompute all following hashes. That is
-**detection of tampering**, not **prevention**. To make forgery meaningfully harder,
-AiProof supports an optional HMAC key:
+**detection of tampering**, not **prevention**.
 
-* stored via the OS keychain (`keyring`) when available, otherwise `~/.aiproof/key` with
-  `0600` permissions;
-* documented honestly: an attacker with read access to the key and the ledger can still
-  forge. This is not a cryptographic signature of authorship.
+An HMAC key (OS keychain via `keyring`, else `~/.aiproof/key` with `0600`) is **planned but
+not implemented yet**; `paths.key_path()` is reserved for it. Treat the current chain as an
+unkeyed SHA-256 chain. If an HMAC is added later it will still not be a cryptographic
+signature of authorship: an attacker with the key and the ledger could forge it.
 
 Ed25519 receipt signatures are a reserved `[sign]` extra and are **not implemented yet**
 (see `docs/SIGNING.md`). When implemented they will sign the chain head, not each record.

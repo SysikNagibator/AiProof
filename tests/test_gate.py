@@ -81,3 +81,36 @@ def test_counts_present(tmp_path: Path) -> None:
     counts = decide(ctx).counts()
     assert counts["checks"] >= 1
     assert counts["fail"] >= 1
+
+
+def test_message_reports_found_count_not_claimed(tmp_path: Path) -> None:
+    """Regression: the mismatch message used to repeat the claimed count as 'found'."""
+    from aiproof.gate import messages
+
+    root, head = make_repo(tmp_path)
+    ctx = make_ctx(
+        root,
+        claims_text="42 tests pass",
+        strictness="enforce",
+        start_commit=head,
+        records=[tool_post("pytest -q", "31 passed")],
+    )
+    text = messages.build(decide(ctx), ctx, "en")
+    assert "claimed 42" in text
+    assert "reported 31" in text
+
+
+def test_message_for_plain_test_failure_is_not_tamper(tmp_path: Path) -> None:
+    from aiproof.gate import messages
+
+    root, head = make_repo(tmp_path)
+    ctx = make_ctx(
+        root,
+        claims_text="all tests pass",
+        strictness="enforce",
+        start_commit=head,
+        records=[tool_post("pytest -q", "10 passed, 1 failed")],
+    )
+    text = messages.build(decide(ctx), ctx, "en")
+    assert "tampering" not in text.lower()
+    assert "1 failed" in text

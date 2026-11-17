@@ -24,7 +24,7 @@ Implementations: `src/aiproof/mcp/server.py`. Protocol version `2024-11-05`.
 | `aiproof_status` | `{}` | armed state, pinned-config integrity, ledger status |
 | `aiproof_verify_claims` | `{"text": "..."}` | per-claim verdicts, no side effects |
 | `aiproof_scan_secrets` | `{}` | findings as type + location + fingerprint |
-| `aiproof_receipt` | `{"session": "..."}` | the session receipt |
+| `aiproof_receipt` | `{"cwd": "..."}` | the latest session receipt |
 | `aiproof_corrections_list` | `{}` | recorded corrections and compiled rules |
 
 Descriptions are one line each to save tokens.
@@ -38,9 +38,11 @@ aiproof install --all
 aiproof install --list-ides
 ```
 
-`install` writes an entry pointing at `aiproof mcp` into the agent's MCP config, with a
-`.bak` backup and without clobbering existing entries. Ready-made configs live in
-`mcp_presets/`. The canonical block is:
+`install` writes a **project-level `.mcp.json`** entry pointing at `aiproof mcp`, with a
+`.bak` backup and without clobbering existing entries. That path is widely understood and
+safe to create; per-host config paths and keys are **not auto-written** because they differ
+between vendors/versions and several live inside a larger user settings file. Ready-made
+per-host blocks live in `mcp_presets/` for manual merging. The canonical block is:
 
 ```json
 {
@@ -50,10 +52,10 @@ aiproof install --list-ides
 }
 ```
 
-Fine-grained-permission hosts that use a different key (`servers` vs `mcpServers`, or a
-`mcpServers` table inside a larger settings file) follow the preset for that host. Presets
-are **unverified** unless `docs/AGENTS_SUPPORT.md` records a verification date for that host;
-treat the exact path/key as needing confirmation.
+Hosts that use a different key (`servers` vs `mcpServers`, or `context_servers`, or a
+`mcpServers` table inside a larger settings file) need the corresponding preset. Presets
+are **unverified** unless `docs/AGENTS_SUPPORT.md` records a verification date for that
+host; treat the exact path/key as needing confirmation.
 
 ## Running by hand
 

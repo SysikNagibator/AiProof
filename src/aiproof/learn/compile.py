@@ -65,10 +65,15 @@ def _candidate_import(correction: Correction) -> Candidate | None:
         return None
     module, scope = match.group(1), match.group(2)
     rule = Rule(
-        id=f"no-import-{_slug(module)}",
+        id=f"no-import-{_slug(module)}-{_slug(scope)}",
         description=f"Do not import {module} in {scope}",
         scope=scope,
-        forbid_added_regex=(rf"(?i)\b(?:from|import)\s+{re.escape(module)}\b",),
+        # ``import os, django`` must be caught too, not only a line that starts
+        # with the module name.
+        forbid_added_regex=(
+            rf"(?i)^\s*from\s+{re.escape(module)}\b"
+            rf"|^\s*import\s+[^\n]*\b{re.escape(module)}\b",
+        ),
         severity="block",
         enabled=False,
         source_correction=correction.id,
@@ -84,7 +89,9 @@ def _candidate_command(correction: Correction) -> Candidate | None:
     rule = Rule(
         id=f"no-command-{_slug(command)}",
         description=f"Do not run `{command}`",
-        forbid_command_regex=(re.escape(command),),
+        # Word/hyphen boundaries so ``git push --force`` does not also block
+        # ``git push --force-with-lease``.
+        forbid_command_regex=(rf"(?<![\w-]){re.escape(command)}(?![\w-])",),
         severity="block",
         enabled=False,
         source_correction=correction.id,

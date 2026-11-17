@@ -279,9 +279,16 @@ def load_rules(path: Path) -> list[Rule]:
 
 
 def save_rules(path: Path, rules: list[Rule] | tuple[Rule, ...]) -> None:
-    """Atomically write rules to *path* (TOML)."""
+    """Atomically write rules to *path* (TOML).
+
+    Every rule is validated first, so an invalid severity, glob or regex is
+    rejected with :class:`RuleError` instead of being silently dropped on the
+    next load.
+    """
     if tomli_w is None:  # pragma: no cover
         raise RuntimeError("tomli-w is required to save rules")
+    for rule in rules:
+        validate_rule(rule)
     payload: dict[str, Any] = {"rule": {rule.id: rule.to_dict() for rule in rules}}
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")

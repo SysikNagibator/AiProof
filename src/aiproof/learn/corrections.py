@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from aiproof.ledger.store import LedgerStore
+from aiproof.redact.redactor import redact_text
 
 # Light-weight topics used for grouping in the CLI/TUI. Purely cosmetic.
 _TOPICS: tuple[tuple[str, tuple[str, ...]], ...] = (
@@ -84,16 +85,34 @@ def record_correction(root: Path, text: str, *, session: str = "human") -> tuple
     cleaned = _WS_RE.sub(" ", text.strip())
     if not cleaned:
         raise ValueError("correction text is empty")
+    # The ledger redacts on append; deduplicate against the value that will
+    # actually be stored so a secret-bearing duplicate is recognised too.
+    safe_text = redact_text(cleaned)
     existing = {normalize(c.text): c for c in list_corrections(root)}
-    key = normalize(cleaned)
+    key = normalize(safe_text)
     if key in existing:
         return existing[key], False
-    LedgerStore(root).append(
+    record = LedgerStore(root).append(
         "correction",
         {"text": cleaned, "topic": topic_of(cleaned)},
         session=session,
     )
-    return list_corrections(root)[-1], True
+    payload = record.get("payload")
+    stored = safe_text
+    topic = topic_of(stored)
+    if isinstance(payload, dict):
+        if isinstance(payload.get("text"), str):
+            stored = payload["text"]
+            topic = topic_of(stored)
+        if isinstance(payload.get("topic"), str):
+            topic = payload["topic"]
+    correction = Correction(
+        id=f"C{len(existing) + 1:03d}",
+        text=stored,
+        session=session,
+        topic=topic,
+    )
+    return correction, True
 
 
 def groups(root: Path) -> dict[str, list[Correction]]:

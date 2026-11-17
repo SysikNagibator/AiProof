@@ -7,6 +7,7 @@ events, stdin JSON, exit codes, JSON decisions, ``stop_hook_active``, and the
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 from pathlib import Path
@@ -15,6 +16,15 @@ from typing import Any
 from aiproof.adapters.base import Adapter, Event, InstallResult, SupportLevel
 
 MARKER = "aiproof hook"
+
+
+class MalformedSettingsError(ValueError):
+    """Raised when an agent settings file exists but is not a JSON object."""
+
+    def __init__(self, path: Path) -> None:
+        super().__init__(f"malformed JSON settings file: {path}")
+        self.path = path
+
 
 # event -> matcher (None = no matcher / fires on every occurrence)
 HOOK_EVENTS: dict[str, str | None] = {
@@ -34,22 +44,46 @@ def _settings_path(root: Path, level: str) -> Path:
 
 
 def _read_json(path: Path) -> dict[str, Any]:
+    """Read a settings file.
+
+    A missing file yields ``{}``. A file that exists but is not a JSON object raises
+    :class:`MalformedSettingsError` — callers must leave it untouched instead of
+    overwriting the user's settings with a partial object.
+    """
     if not path.is_file():
         return {}
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return {}
-    return data if isinstance(data, dict) else {}
+    except (json.JSONDecodeError, UnicodeDecodeError, OSError) as exc:
+        raise MalformedSettingsError(path) from exc
+    if not isinstance(data, dict):
+        raise MalformedSettingsError(path)
+    return data
 
 
 def _hook_command(event: str) -> str:
     return f"{MARKER} {event}"
 
 
-def _is_ours(hook: dict[str, Any]) -> bool:
+def _is_ours(hook: Any) -> bool:
+    if not isinstance(hook, dict):
+        return False
     command = hook.get("command")
     return isinstance(command, str) and MARKER in command
+
+
+def _has_our_hooks(settings: dict[str, Any]) -> bool:
+    """Return True when *settings* contains at least one AiProof hook entry."""
+    hooks = settings.get("hooks")
+    if not isinstance(hooks, dict):
+        return False
+    for groups in hooks.values():
+        if not isinstance(groups, list):
+            continue
+        for group in groups:
+            if isinstance(group, dict) and any(_is_ours(hook) for hook in group.get("hooks", [])):
+                return True
+    return False
 
 
 def _our_hook_entry(event: str) -> dict[str, Any]:
@@ -69,6 +103,31 @@ class ClaudeCodeAdapter(Adapter):
             or (root / "CLAUDE.md").is_file()
             or (Path.home() / ".claude" / "settings.json").is_file()
         )
+
+    def hook_status(self, root: Path) -> tuple[str, Path | None]:
+        """Report our hooks across project/local/user settings.
+
+        Returns ``(state, path)`` where state is ``installed``, ``not_installed``,
+        ``malformed`` or ``missing``. Parsing is JSON-based, so a malformed file
+        that merely contains the marker string is not reported as installed.
+        """
+        malformed: Path | None = None
+        seen = False
+        for level in ("project", "local", "user"):
+            path = _settings_path(root, level)
+            if not path.is_file():
+                continue
+            seen = True
+            try:
+                settings = _read_json(path)
+            except MalformedSettingsError:
+                malformed = malformed or path
+                continue
+            if _has_our_hooks(settings):
+                return "installed", path
+        if malformed is not None:
+            return "malformed", malformed
+        return ("not_installed" if seen else "missing"), None
 
     def _merge(self, settings: dict[str, Any]) -> dict[str, Any]:
         hooks = settings.setdefault("hooks", {})
@@ -130,8 +189,13 @@ class ClaudeCodeAdapter(Adapter):
         """Install hooks (project level by default)."""
         path = _settings_path(root, level)
         result = InstallResult()
-        original = _read_json(path)
-        merged = self._merge(json.loads(json.dumps(original)))
+        try:
+            original = _read_json(path)
+        except MalformedSettingsError:
+            # Never replace a file we could not parse.
+            result.skipped.append(os.fspath(path))
+            return result
+        merged = self._merge(copy.deepcopy(original))
         if dry_run:
             result.skipped.append(os.fspath(path))
             return result
@@ -145,13 +209,20 @@ class ClaudeCodeAdapter(Adapter):
         return result
 
     def uninstall(self, root: Path, *, dry_run: bool = False) -> InstallResult:
-        """Remove AiProof's own hook entries."""
+        """Remove AiProof's own hook entries from project, local and user settings."""
         result = InstallResult()
-        for level in ("project", "local"):
+        for level in ("project", "local", "user"):
             path = _settings_path(root, level)
             if not path.is_file():
                 continue
-            stripped = self._strip(_read_json(path))
+            try:
+                original = _read_json(path)
+            except MalformedSettingsError:
+                result.skipped.append(os.fspath(path))
+                continue
+            if not _has_our_hooks(original):
+                continue
+            stripped = self._strip(copy.deepcopy(original))
             if dry_run:
                 result.skipped.append(os.fspath(path))
                 continue

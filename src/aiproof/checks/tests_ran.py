@@ -16,7 +16,15 @@ TEST_CMD_RE = re.compile(
     r"npm (?:run )?test|yarn test|pnpm test|bun test|make test|tox|nox)\b",
     re.IGNORECASE,
 )
-NO_TESTS_RE = re.compile(r"no tests ran|collected 0 items|0 tests|no test files", re.IGNORECASE)
+NO_TESTS_RE = re.compile(
+    r"no tests ran|collected 0 items|(?<!\d)0 tests|no test files", re.IGNORECASE
+)
+
+# unittest/nose print ``Ran N tests in Xs`` followed by ``OK`` or
+# ``FAILED (failures=..., errors=...)``.
+_UNITTEST_RAN_RE = re.compile(r"Ran (\d+) tests? in", re.IGNORECASE)
+_UNITTEST_FAILED_RE = re.compile(r"FAILED \(([^)]*)\)", re.IGNORECASE)
+_FAILURES_ERRS_RE = re.compile(r"(?:failures|errors)=(\d+)", re.IGNORECASE)
 
 _COUNT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("passed", re.compile(r"(\d+)\s+passed", re.IGNORECASE)),
@@ -25,7 +33,7 @@ _COUNT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("errors", re.compile(r"(\d+)\s+errors?", re.IGNORECASE)),
     ("examples", re.compile(r"(\d+)\s+examples?", re.IGNORECASE)),
     ("failures", re.compile(r"(\d+)\s+failures?", re.IGNORECASE)),
-    ("dotnet_passed", re.compile(r"Passed!.*?Passed:\s*(\d+)", re.IGNORECASE)),
+    ("dotnet_passed", re.compile(r"Passed![^\n]{0,80}?Passed:\s*(\d+)", re.IGNORECASE)),
 )
 
 
@@ -65,7 +73,25 @@ def parse_counts(output: str) -> TestCounts:
             counts.passed = max(counts.passed, value)
         elif _name == "failures":
             counts.failed = max(counts.failed, value)
+    if not counts.saw_any:
+        _parse_unittest(output, counts)
     return counts
+
+
+def _parse_unittest(output: str, counts: TestCounts) -> None:
+    """Fill *counts* from a unittest/nose summary (``Ran N tests ... OK``)."""
+    ran = _UNITTEST_RAN_RE.search(output)
+    if ran is None:
+        return
+    counts.saw_any = True
+    total = int(ran.group(1))
+    failure = _UNITTEST_FAILED_RE.search(output)
+    if failure is None:
+        counts.passed = total
+        return
+    failed = sum(int(n) for n in _FAILURES_ERRS_RE.findall(failure.group(1)))
+    counts.failed = failed
+    counts.passed = max(0, total - failed)
 
 
 def _outputs(ctx: CheckContext) -> list[tuple[str, str]]:
@@ -99,11 +125,14 @@ def check(claim: Claim, ctx: CheckContext) -> CheckResult:
             return failed(claim, "no test command was run during this session")
         return unknown(claim, "no test command observed")
 
-    best = TestCounts()
+    latest: TestCounts | None = None
     evidence: list[Evidence] = []
     for command, output in pairs:
         counts = parse_counts(output)
         if counts.saw_any:
+            # The last parsed run is authoritative: a later failing run must not be
+            # shadowed by an earlier run that happened to have more tests.
+            latest = counts
             evidence.append(
                 Evidence(
                     "test_run",
@@ -116,13 +145,11 @@ def check(claim: Claim, ctx: CheckContext) -> CheckResult:
                     },
                 )
             )
-        if counts.total > best.total:
-            best = counts
-    if not best.saw_any:
-        strict = ctx.settings.strictness == "strict"
-        if strict and any(NO_TESTS_RE.search(o) for _c, o in pairs):
+    if latest is None:
+        if any(NO_TESTS_RE.search(o) for _c, o in pairs):
             return failed(claim, "test run collected no tests", evidence)
         return unknown(claim, "could not parse test counts from runner output", evidence)
+    best = latest
 
     if best.failed or best.errors:
         return failed(

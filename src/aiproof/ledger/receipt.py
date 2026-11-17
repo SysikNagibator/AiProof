@@ -42,6 +42,13 @@ class Receipt:
         }
 
 
+def _dicts(value: Any) -> list[dict[str, Any]]:
+    """Return the dict items of *value* (ignores anything else)."""
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, dict)]
+
+
 def build_receipt(root: Path, session: str) -> Receipt:
     """Collect everything known about a session into a receipt."""
     store = LedgerStore(root)
@@ -52,13 +59,15 @@ def build_receipt(root: Path, session: str) -> Receipt:
     for record in store.records(session=session):
         payload = record.get("payload", {})
         event = record.get("event")
-        if event == "check_result" and isinstance(payload, dict):
-            results.extend(payload.get("results", []))
-            findings.extend(payload.get("findings", []))
+        if not isinstance(payload, dict):
+            continue
+        if event == "check_result":
+            results.extend(_dicts(payload.get("results")))
+            findings.extend(_dicts(payload.get("findings")))
         elif event == "tamper_attempt":
-            tamper.append(payload if isinstance(payload, dict) else {})
+            tamper.append(payload)
         elif event == "gate_decision":
-            decisions.append(payload if isinstance(payload, dict) else {})
+            decisions.append(payload)
     result = verify.verify(root)
     return Receipt(
         session=session,
@@ -94,7 +103,9 @@ def render_md(receipt: Receipt, lang: str = "en") -> str:
         "| --- | --- | --- |",
     ]
     for result in receipt.results:
-        claim = result.get("claim", {})
+        claim = result.get("claim")
+        if not isinstance(claim, dict):
+            claim = {}
         lines.append(
             f"| {claim.get('type', '?')}: {claim.get('text', '')} "
             f"| {result.get('verdict', '?')} | {result.get('reason', '')} |"
@@ -116,7 +127,9 @@ def render_html(receipt: Receipt, lang: str = "en") -> str:
     """Render a self-contained, printable, dark/light-aware HTML receipt (localized)."""
     rows = []
     for result in receipt.results:
-        claim = result.get("claim", {})
+        claim = result.get("claim")
+        if not isinstance(claim, dict):
+            claim = {}
         rows.append(
             "<tr><td>{}</td><td class='{}'>{}</td><td>{}</td></tr>".format(
                 html.escape(f"{claim.get('type', '?')}: {claim.get('text', '')}"),
@@ -129,6 +142,11 @@ def render_html(receipt: Receipt, lang: str = "en") -> str:
         f"<li><b>{html.escape(str(f.get('check')))}</b> ({html.escape(str(f.get('verdict')))}): "
         f"{html.escape(str(f.get('reason')))}</li>"
         for f in receipt.findings
+    )
+    tamper = "".join(
+        f"<li>{html.escape(str(attempt.get('tool')))}: "
+        f"{html.escape(str(attempt.get('reason')))}</li>"
+        for attempt in receipt.tamper
     )
     badge = (
         t("receipt.badge_verified", lang) if receipt.verified else t("receipt.badge_broken", lang)
@@ -152,6 +170,7 @@ def render_html(receipt: Receipt, lang: str = "en") -> str:
 <table><thead><tr><th>{html.escape(t("receipt.col_claim", lang))}</th><th>{html.escape(t("receipt.col_verdict", lang))}</th><th>{html.escape(t("receipt.col_evidence", lang))}</th></tr></thead>
 <tbody>{"".join(rows)}</tbody></table>
 {"<h2>" + html.escape(t("receipt.integrity_title", lang)) + "</h2><ul>" + findings + "</ul>" if findings else ""}
+{"<h2>" + html.escape(t("receipt.tamper_title", lang)) + "</h2><ul>" + tamper + "</ul>" if tamper else ""}
 <footer>{html.escape(t("receipt.footer", lang))}</footer>
 </body></html>
 """

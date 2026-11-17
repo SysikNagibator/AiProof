@@ -27,6 +27,7 @@ class GateDecision:
         fails = sum(1 for r in self.results if r.verdict is Verdict.FAIL)
         fails += sum(1 for f in self.findings if f.verdict is Verdict.FAIL)
         unknowns = sum(1 for r in self.results if r.verdict is Verdict.UNKNOWN)
+        unknowns += sum(1 for f in self.findings if f.verdict is Verdict.UNKNOWN)
         return {
             "checks": len(self.results) + len(self.findings),
             "fail": fails,

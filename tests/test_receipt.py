@@ -56,6 +56,8 @@ def test_receipt_html_is_self_contained(tmp_path: Path) -> None:
     html = render_html(build_receipt(tmp_path, session))
     assert html.startswith("<!doctype html>")
     assert "AiProof" in html
+    # Tamper attempts are part of the receipt, so HTML must render them too.
+    assert "protected path" in html
 
 
 def test_receipt_md_is_localized(tmp_path: Path) -> None:
@@ -79,3 +81,30 @@ def test_receipt_detects_tamper(tmp_path: Path) -> None:
     ledger = paths.ledger_path(tmp_path)
     ledger.write_text(ledger.read_text().replace("true", "false"), encoding="utf-8")
     assert build_receipt(tmp_path, session).verified is False
+
+
+def test_receipt_survives_wrong_payload_types(tmp_path: Path) -> None:
+    """A parseable but schema-broken ledger must not crash the renderers."""
+    store = LedgerStore(tmp_path)
+    store.append("session_start", {"cwd": str(tmp_path)}, session="s2")
+    store.append(
+        "check_result",
+        {
+            "results": "not-a-list",
+            "findings": [42, {"check": "x", "verdict": "fail", "reason": "y"}],
+        },
+        session="s2",
+    )
+    store.append(
+        "check_result",
+        {
+            "results": [{"claim": "not-a-dict", "verdict": "fail", "reason": "z"}],
+            "findings": None,
+        },
+        session="s2",
+    )
+    receipt = build_receipt(tmp_path, "s2")
+    assert len(receipt.results) == 1
+    assert len(receipt.findings) == 1
+    assert "z" in render_md(receipt)
+    assert "z" in render_html(receipt)

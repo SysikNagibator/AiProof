@@ -10,10 +10,15 @@ aiproof --version      # AiProof 0.1.0 by SYSIK
 
 ## How it works
 
-* `install.js` runs on `postinstall`, picks `AiProof_{Linux,macOS,Win}_<version>[.exe]`, fetches
-  it together with `SHA256SUMS`, and refuses to write anything if the hash does not match.
+* `install.js` runs on `postinstall`, picks
+  `AiProof_{Linux,macOS,Win}_{x64,arm64}_<version>[.exe]`, fetches it together with
+  `SHA256SUMS`, and refuses to write anything if the hash does not match.
 * `bin/aiproof.js` is the launcher. It executes the verified binary under `vendor/`, or falls
   back to a system `aiproof` (e.g. installed with `pipx`) if the download was skipped.
+
+Published binaries: Linux x64, Linux arm64, macOS x64, macOS arm64 and Windows x64. Windows
+arm64 is **not** built yet; the installer then prints a clear message and leaves a system
+`aiproof` usable.
 
 ## Configuration
 

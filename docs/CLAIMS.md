@@ -59,8 +59,9 @@ The extractor is pure: no I/O, no network, deterministic given the same input.
 
 Phrase tables live as data under `src/aiproof/claims/lang/<code>.py`, one module per
 language, each exporting `CODE`, `STOPWORDS`, `NEG`, `HEDGE` and `RULES`. Shipped packs:
-**en, ru, uk, de, es, fr, pt_br, zh_cn, ja, ko, tr**. These are separate from the UI
-catalogs in `docs/I18N.md` and are tested independently (`tests/test_claims.py`).
+**en, ru, uk, de, es, fr, pt, zh, ja, ko, tr**. These are separate from the UI catalogs in
+`docs/I18N.md` (which use `pt_br`/`zh_cn`) and are tested independently
+(`tests/test_claims.py`).
 
 Seed coverage per language (non-exhaustive):
 

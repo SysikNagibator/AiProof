@@ -15,6 +15,7 @@ from typing import Any
 from aiproof import gitutil
 from aiproof.learn.dsl import DiffFile, Rule, RuleHit, apply_rule
 from aiproof.ledger.store import LedgerStore
+from aiproof.redact.redactor import redact_text
 
 DEFAULT_LIMIT = 200
 
@@ -112,7 +113,11 @@ def collect_commands(root: Path) -> list[str]:
 
 def _sample(hit: RuleHit, context: str) -> dict[str, Any]:
     data = hit.as_dict()
-    data["context"] = context
+    # Git history and command logs can contain secrets; samples are printed by
+    # the CLI, so keep the "redacted everywhere" promise here too.
+    data["text"] = redact_text(str(data.get("text", "")))
+    data["description"] = redact_text(str(data.get("description", "")))
+    data["context"] = redact_text(context)
     return data
 
 

@@ -86,7 +86,7 @@ any CLI), not because every CLI is tested.
 aiproof install --list-ides          # print the table above
 aiproof install --ide claude-code    # native hooks (verified)
 aiproof install --ide cursor --dry-run
-aiproof install --all                # every agent, dry-run by default
+aiproof install --all                # every registered agent (writes files; add --dry-run)
 ```
 
 `mcp-only` agents get an `.mcp.json` entry pointing at `aiproof mcp` (read-only self-check).

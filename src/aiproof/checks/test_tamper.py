@@ -21,7 +21,7 @@ SKIP_ADDED_RE = re.compile(
     r"(pytest\.mark\.(?:skip|xfail)|@unittest\.skip|\b(?:it|test|describe)\.(?:only|skip)\b|"
     r"\.skip\(|\.todo\(|t\.Skip\(|#\[ignore\]|@Disabled|@Ignore)"
 )
-EXACT_MATCHER_RE = re.compile(r"(toBe|toEqual|assertEquals|assertEqual)\(\s*([^)]+)\)")
+EXACT_MATCHER_RE = re.compile(r"(toBe|toEqual|assertEquals|assertEqual)\([ \t]*([^)\n]{1,200})\)")
 LOOSE_MATCHER_RE = re.compile(
     r"(toBeTruthy|toBeDefined|toBeGreaterThan|toBeLessThan|toContain|toBeInstanceOf|"
     r"assertIsNotNone|assertTrue|assertIsNotNone)\(\)"

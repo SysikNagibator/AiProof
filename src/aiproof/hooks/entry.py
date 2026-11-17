@@ -139,6 +139,26 @@ def _handle_stop(
     settings: Any,
     event: Any,
 ) -> int:
+    from aiproof.maintenance import pause
+
+    if pause.is_paused(root):
+        # A human paused verification: record the stop, but never block while paused.
+        store.append(
+            "gate_decision",
+            {
+                "block": False,
+                "paused": True,
+                "strictness": settings.strictness,
+                "reason": "paused",
+                "results": [],
+                "findings": [],
+                "capped": False,
+                "counts": {"checks": 0, "fail": 0, "unknown": 0},
+            },
+            session=event.session_id,
+        )
+        return 0
+
     records = store.records(session=event.session_id)
     start_commit: str | None = None
     for record in records:
@@ -162,7 +182,10 @@ def _handle_stop(
     )
 
     blocks = _previous_blocks(store, event.session_id)
-    capped = blocks >= MAX_BLOCKS
+    # ``stop_hook_active`` is set by Claude Code when it is already continuing because
+    # of an earlier Stop-hook block. Blocking again here risks an endless loop, so the
+    # agent's own re-entrancy flag is treated as the cap (recorded as ``capped``).
+    capped = blocks >= MAX_BLOCKS or bool(event.stop_hook_active)
 
     ctx = CheckContext(
         root=root,

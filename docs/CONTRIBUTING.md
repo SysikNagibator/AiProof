@@ -31,7 +31,7 @@ pip install -e ".[dev]"
 ruff check .            # lint
 ruff format .           # format
 mypy                    # strict type check over src/aiproof
-pytest                  # tests (149 currently)
+pytest                  # tests (180 currently)
 ```
 
 All four must be clean before a PR. CI runs the same on Linux/macOS/Windows for Python

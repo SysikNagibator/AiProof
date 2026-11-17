@@ -11,12 +11,12 @@ exists when it lands, and the receipt JSON reserves a `sign` field.
 What exists today:
 
 * The ledger is a **hash chain**; `aiproof ledger verify` detects any silent edit.
-* An optional **HMAC** key (OS keychain via `keyring`, else `~/.aiproof/key` with `0600`)
-  makes recomputation harder but is **not** a signature of authorship. Anyone with the key
-  and the ledger can still forge. This is documented in `docs/LEDGER.md`.
 
 What is planned (do not claim it works):
 
+* An optional **HMAC** key (OS keychain via `keyring`, else `~/.aiproof/key` with `0600`)
+  to make recomputation harder. It would still **not** be a signature of authorship:
+  anyone with the key and the ledger could forge. `paths.key_path()` is reserved for it.
 * Ed25519 signature over the **chain head** (not each record).
 * A public key published with releases so a verifier can confirm the receipt was produced by
   the key holder and was not altered.
@@ -31,16 +31,17 @@ authorship. State exactly that.
 
 ### What AiProof produces
 
-PyInstaller single-file builds, named `AiProof_Win_<ver>.exe`, `AiProof_macOS_<ver>` and
-`AiProof_Linux_<ver>`, with icon and version info (publisher **SYSIK**). The release
-workflow also produces `SHA256SUMS`. See `tools/build_exe.sh`, `tools/build_exe.bat` and
-`.github/workflows/release.yml`.
+PyInstaller single-file builds, named `AiProof_<OS>_<arch>_<ver>` (`Linux`/`macOS`/`Win`,
+`x64`/`arm64`, `.exe` on Windows), with icon and version info (publisher **SYSIK**). The
+release workflow also produces `SHA256SUMS`. See `tools/build_exe.sh`, `tools/build_exe.bat`
+and `.github/workflows/release.yml`.
 
 ### Integrity you get today
 
 * `SHA256SUMS` published with every release.
-* `aiproof update` verifies the release's SHA-256 from the **manifest**, not from a file
-  header alone, requires explicit consent, and can roll back.
+* `aiproof update --check` reads the release metadata; `verify_sha256()` can validate a
+  downloaded file against a manifest. The **download/replace/rollback** path and the TUI
+  "Yes to install" flow are **not implemented yet** — do not claim them.
 * The npm wrapper (`npm/`) verifies the downloaded binary's SHA-256 before use.
 
 ### Windows SmartScreen

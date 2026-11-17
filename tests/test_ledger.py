@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
+
+import pytest
 
 from aiproof import paths
 from aiproof.ledger import verify
@@ -76,3 +79,32 @@ def test_append_after_corrupt_tail_does_not_crash(tmp_path: Path) -> None:
         handle.write("broken tail\n")
     store.append("gate_decision", {"block": False}, session="s1")
     assert not verify.verify(tmp_path).ok
+
+
+def test_lock_timeout_raises_instead_of_entering_unlocked(tmp_path: Path) -> None:
+    """Regression: a timeout used to proceed without the lock and fork the chain."""
+    from aiproof.ledger._lock import file_lock
+
+    path = tmp_path / ".lock"
+    with file_lock(path), pytest.raises(TimeoutError), file_lock(path, timeout=0.05):
+        raise AssertionError("must not enter the critical section")
+
+
+def test_append_fails_loudly_when_lock_times_out(tmp_path: Path) -> None:
+    import aiproof.ledger.store as store_module
+
+    store = LedgerStore(tmp_path)
+    store.append("session_start", {"a": 1}, session="s1")
+    original = store_module.file_lock
+
+    @contextlib.contextmanager
+    def fake_lock(path: Path, timeout: float = 5.0):
+        raise TimeoutError("busy")
+
+    store_module.file_lock = fake_lock  # type: ignore[assignment]
+    try:
+        with pytest.raises(TimeoutError):
+            store.append("gate_decision", {"block": False}, session="s1")
+    finally:
+        store_module.file_lock = original  # type: ignore[assignment]
+    assert len(store.records()) == 1

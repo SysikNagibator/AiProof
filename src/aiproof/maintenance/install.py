@@ -27,6 +27,7 @@ class InitReport:
     detected: list[str] = field(default_factory=list)
     changed: list[str] = field(default_factory=list)
     backups: list[str] = field(default_factory=list)
+    skipped: list[str] = field(default_factory=list)
     pinned_sha256: str = ""
     dry_run: bool = False
 
@@ -38,16 +39,23 @@ def init_project(root: Path, *, dry_run: bool = False, level: str = "project") -
 
     detected: list[Adapter] = detect_all(root)
     report.detected = [a.id for a in detected]
-    if not detected:
-        detected = [ClaudeCodeAdapter()]
-        report.detected = ["claude-code (assumed)"]
 
-    for adapter in detected:
+    # Claude Code hooks are the only blocking (native-hook) integration and the
+    # default target, so ``init`` always installs them. Without this, a repo that
+    # only has e.g. ``.mcp.json`` would report success while leaving the gate
+    # silently inactive (detect_all would return just the MCP adapter).
+    targets: list[Adapter] = list(detected)
+    if not any(a.id == "claude-code" for a in targets):
+        targets.append(ClaudeCodeAdapter())
+        report.detected.append("claude-code (assumed)")
+
+    for adapter in targets:
         if adapter.id != "claude-code":
             continue
         result = adapter.install(root, dry_run=dry_run, level=level)  # type: ignore[call-arg]
         report.changed.extend(result.changed)
         report.backups.extend(result.backups)
+        report.skipped.extend(result.skipped)
 
     allow = paths.project_allow_path(root)
     if not allow.is_file() and not dry_run:
@@ -65,7 +73,12 @@ def init_project(root: Path, *, dry_run: bool = False, level: str = "project") -
 def uninstall_project(root: Path, *, dry_run: bool = False) -> list[str]:
     """Remove AiProof's own hook entries (never user entries)."""
     changed: list[str] = []
-    for adapter in detect_all(root) or [ClaudeCodeAdapter()]:
+    targets: list[Adapter] = list(detect_all(root))
+    # Always attempt to strip our Claude Code hooks, even when only a different
+    # adapter is currently detected (e.g. a leftover user-level install).
+    if not any(a.id == "claude-code" for a in targets):
+        targets.append(ClaudeCodeAdapter())
+    for adapter in targets:
         result = adapter.uninstall(root, dry_run=dry_run)
         changed.extend(result.changed)
         changed.extend(result.skipped)

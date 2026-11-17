@@ -1,8 +1,9 @@
 # MCP presets
 
 Ready-made MCP server config blocks for IDEs/agents that connect to `aiproof mcp`.
-`aiproof install --ide <id>` writes the right one into the right place with a `.bak` backup;
-these files are for manual merging or for hosts AiProof does not install into directly.
+`aiproof install --ide <id>` writes the generic project-level `.mcp.json` block; the
+per-host blocks below are for **manual merging**, because their paths and top-level keys
+are unverified and some live inside a larger settings file.
 
 ## The canonical block
 

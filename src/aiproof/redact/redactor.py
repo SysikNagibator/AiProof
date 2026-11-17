@@ -12,12 +12,15 @@ from typing import Any
 from aiproof.redact import entropy
 from aiproof.redact.patterns import ENTROPY_CANDIDATE, SECRET_PATTERNS, SENSITIVE_HINT, Pattern
 
-PLACEHOLDER_RE = re.compile(r"\[REDACTED:[a-z_]+:[0-9a-f]{4}\]")
+PLACEHOLDER_RE = re.compile(r"\[REDACTED:[a-z_]+:[0-9a-f]{8}\]")
 
 
 def fingerprint(secret: str) -> str:
-    """Return a 4-hex, non-reversible fingerprint for a secret value."""
-    return hashlib.sha256(secret.encode("utf-8")).hexdigest()[:4]
+    """Return an 8-hex, non-reversible fingerprint for a secret value."""
+    # ``surrogatepass`` avoids UnicodeEncodeError on lone surrogates that can arrive
+    # from JSON escapes or damaged files.
+    digest = hashlib.sha256(secret.encode("utf-8", "surrogatepass")).hexdigest()
+    return digest[:8]
 
 
 def placeholder(type_: str, secret: str) -> str:
@@ -55,6 +58,17 @@ class Allowlist:
             return True
         return any(rx.search(secret) for rx in self._compiled)
 
+    def allows_path(self, location: str) -> bool:
+        """Return True when *location* matches a path allowlist entry."""
+        from fnmatch import fnmatch
+
+        normalised = location.replace("\\", "/")
+        for entry in self.paths:
+            pattern = entry.replace("\\", "/").rstrip("/")
+            if fnmatch(normalised, pattern) or normalised.startswith(pattern + "/"):
+                return True
+        return False
+
 
 def load_allowlist(path: Path) -> Allowlist:
     """Load an allowlist from a TOML file (returns empty on missing/invalid)."""
@@ -72,7 +86,7 @@ def load_allowlist(path: Path) -> Allowlist:
 def _sub_pattern(text: str, pattern: Pattern, allowlist: Allowlist) -> str:
     def repl(match: re.Match[str]) -> str:
         secret = match.group(pattern.group)
-        if secret is None:
+        if secret is None or PLACEHOLDER_RE.fullmatch(secret.strip()):
             return match.group(0)
         fp = fingerprint(secret)
         if allowlist.allows(secret, fp):
@@ -91,12 +105,14 @@ def _sub_pattern(text: str, pattern: Pattern, allowlist: Allowlist) -> str:
 def _redact_entropy(text: str, allowlist: Allowlist) -> str:
     out_lines: list[str] = []
     for line in text.splitlines(keepends=True):
-        if not SENSITIVE_HINT.search(line) or PLACEHOLDER_RE.search(line):
+        if not SENSITIVE_HINT.search(line):
             out_lines.append(line)
             continue
 
         def repl(match: re.Match[str]) -> str:
             token = match.group(0)
+            if PLACEHOLDER_RE.search(token):
+                return token
             if not entropy.looks_secret(token):
                 return token
             fp = fingerprint(token)
@@ -109,7 +125,7 @@ def _redact_entropy(text: str, allowlist: Allowlist) -> str:
 
 
 def redact_text(text: str, allowlist: Allowlist | None = None) -> str:
-    """Redact every known/entropy-detected secret in *text*."""
+    """Redact every known/entropy-detected secret in *text* (idempotent)."""
     allow = allowlist or Allowlist()
     if not allow._compiled:
         allow.compile()
@@ -120,11 +136,25 @@ def redact_text(text: str, allowlist: Allowlist | None = None) -> str:
 
 
 def find_secrets(text: str, allowlist: Allowlist | None = None) -> list[Finding]:
-    """Return findings (type + fingerprint + span) without any secret value."""
+    """Return findings (type + fingerprint + span) without any secret value.
+
+    The same token can match several patterns (e.g. an OpenAI key also matches
+    ``assigned_secret`` and the entropy pass); only the first finding per
+    ``(fingerprint, start, end)`` is kept.
+    """
     allow = allowlist or Allowlist()
     if not allow._compiled:
         allow.compile()
     findings: list[Finding] = []
+    seen: set[tuple[str, int, int]] = set()
+
+    def add(finding: Finding) -> None:
+        key = (finding.fingerprint, finding.start, finding.end)
+        if key in seen:
+            return
+        seen.add(key)
+        findings.append(finding)
+
     for pattern in SECRET_PATTERNS:
         for match in pattern.regex.finditer(text):
             secret = match.group(pattern.group)
@@ -133,9 +163,7 @@ def find_secrets(text: str, allowlist: Allowlist | None = None) -> list[Finding]
             fp = fingerprint(secret)
             if allow.allows(secret, fp):
                 continue
-            findings.append(
-                Finding(pattern.type, fp, match.start(pattern.group), match.end(pattern.group))
-            )
+            add(Finding(pattern.type, fp, match.start(pattern.group), match.end(pattern.group)))
     for line_match in re.finditer(r"[^\r\n]+", text):
         line = line_match.group(0)
         if not SENSITIVE_HINT.search(line):
@@ -148,16 +176,16 @@ def find_secrets(text: str, allowlist: Allowlist | None = None) -> list[Finding]
             if allow.allows(token, fp):
                 continue
             start = line_match.start() + candidate.start()
-            findings.append(Finding("entropy", fp, start, start + len(token), entropy=True))
+            add(Finding("entropy", fp, start, start + len(token), entropy=True))
     return findings
 
 
 def redact_json(obj: Any, allowlist: Allowlist | None = None) -> Any:
-    """Recursively redact every string inside a JSON-like structure."""
+    """Recursively redact every string (keys included) inside a JSON-like structure."""
     if isinstance(obj, str):
         return redact_text(obj, allowlist)
     if isinstance(obj, dict):
-        return {k: redact_json(v, allowlist) for k, v in obj.items()}
+        return {redact_text(str(k), allowlist): redact_json(v, allowlist) for k, v in obj.items()}
     if isinstance(obj, (list, tuple)):
         return [redact_json(v, allowlist) for v in obj]
     return obj

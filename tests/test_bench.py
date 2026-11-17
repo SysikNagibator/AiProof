@@ -6,7 +6,7 @@ from aiproof.bench.runner import BenchResult, run_scenarios
 from aiproof.bench.scenarios import SCENARIOS
 
 
-def test_30_scenarios_defined() -> None:
+def test_scenarios_defined() -> None:
     assert len(SCENARIOS) == 31
     assert [i for i, _n, _f in SCENARIOS] == list(range(1, 32))
 

@@ -50,3 +50,44 @@ def resolve(name: str, *, ascii_only: bool = False) -> tuple[Theme, bool]:
     if no_color():
         theme = get_theme("mono")
     return theme, force_ascii(ascii_only)
+
+
+# Punctuation/symbols used by the TUI that have a plain-ASCII equivalent.
+_ASCII_MAP = str.maketrans(
+    {
+        "●": "*",
+        "❯": ">",
+        "✓": "v",
+        "✗": "x",
+        "·": "-",
+        "—": "-",
+        "–": "-",
+        "↑": "^",
+        "↓": "v",
+        "→": ">",
+        "←": "<",
+        "█": "#",
+        "│": "|",
+        "─": "-",
+        "╭": "+",
+        "╮": "+",
+        "╰": "+",
+        "╯": "+",
+        "┌": "+",
+        "┐": "+",
+        "└": "+",
+        "┘": "+",
+        "├": "+",
+        "┤": "+",
+        "┬": "+",
+        "┴": "+",
+        "┼": "+",
+        "═": "=",
+        "║": "|",
+    }
+)
+
+
+def ascii_safe(value: str) -> str:
+    """Replace TUI symbols with ASCII equivalents (leaves letters untouched)."""
+    return value.translate(_ASCII_MAP)

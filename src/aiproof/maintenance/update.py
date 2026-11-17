@@ -23,6 +23,12 @@ class UpdateInfo:
     newer: bool
     changelog: str = ""
     url: str = ""
+    error: str = ""
+
+    @property
+    def ok(self) -> bool:
+        """Return True when the release check actually succeeded."""
+        return not self.error
 
 
 def _parse_version(value: str) -> tuple[int, ...]:
@@ -35,12 +41,17 @@ def _parse_version(value: str) -> tuple[int, ...]:
 
 def check() -> UpdateInfo:
     """Check GitHub releases (network). Never installs anything."""
+    failure = "could not reach the release API"
     try:
         req = urllib.request.Request(RELEASES_API, headers={"User-Agent": "aiproof"})
         with urllib.request.urlopen(req, timeout=TIMEOUT) as response:
-            data: dict[str, Any] = json.loads(response.read().decode("utf-8"))
-    except (OSError, ValueError):
-        return UpdateInfo(__version__, __version__, False)
+            data: Any = json.loads(response.read().decode("utf-8"))
+    except (OSError, ValueError, UnicodeDecodeError) as exc:
+        return UpdateInfo(__version__, __version__, False, error=f"{failure}: {exc}")
+    if not isinstance(data, dict):
+        return UpdateInfo(
+            __version__, __version__, False, error="release API returned invalid JSON"
+        )
     latest = str(data.get("tag_name", __version__))
     return UpdateInfo(
         current=__version__,

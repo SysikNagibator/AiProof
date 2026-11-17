@@ -50,6 +50,8 @@ replaced by loose ones are flagged.
 
 *Limit:* renaming/refactoring tests legitimately can look like deletion; we allow it when
 matching non-test source changes accompany it (see scenario 27/28 in [`BENCH.md`](BENCH.md)).
+That justification rule also means an agent can hide a deletion by touching any source file.
+Assertion counts and hardcoded lookup tables are not detected (bench scenario 5).
 
 ### 4. Secret redaction & scanning
 

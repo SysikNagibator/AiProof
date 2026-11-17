@@ -12,7 +12,6 @@
 const crypto = require("crypto");
 const fs = require("fs");
 const https = require("https");
-const os = require("os");
 const path = require("path");
 
 const pkg = require("./package.json");
@@ -23,8 +22,18 @@ const BASE =
 function assetName() {
   const osName = { linux: "Linux", darwin: "macOS", win32: "Win" }[process.platform];
   if (!osName) throw new Error(`unsupported platform: ${process.platform}`);
+  const arch = process.arch;
+  if (arch !== "x64" && arch !== "arm64") {
+    throw new Error(`unsupported CPU architecture: ${arch}`);
+  }
+  if (process.platform === "win32" && arch !== "x64") {
+    throw new Error(`no Windows ${arch} binary is published yet`);
+  }
   const suffix = process.platform === "win32" ? ".exe" : "";
-  return `AiProof_${osName}_${pkg.version}${suffix}`;
+  // Release assets are named after the *tag* version, without the leading `v`.
+  // AIPROOF_VERSION may override the tag, so derive the filename from it too.
+  const version = VERSION.replace(/^v/, "");
+  return `AiProof_${osName}_${arch}_${version}${suffix}`;
 }
 
 function get(url) {

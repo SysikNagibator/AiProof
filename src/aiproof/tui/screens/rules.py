@@ -12,11 +12,12 @@ from aiproof.i18n import t
 from aiproof.learn.corrections import list_corrections
 from aiproof.learn.dsl import load_rules
 from aiproof.tui.theme import Theme
+from aiproof.tui.widgets import data_table
 
 
 def render(root: Path, settings: Settings, lang: str, theme: Theme, ascii_only: bool) -> Table:
     """Render recorded corrections plus compiled rules and their state."""
-    table = Table(title=t("menu.rules", lang), border_style=theme.primary)
+    table = data_table(t("menu.rules", lang), theme=theme, ascii_only=ascii_only)
     table.add_column(t("tui.id", lang), style=theme.dim)
     table.add_column(t("tui.kind", lang))
     table.add_column(t("tui.text", lang))
@@ -30,8 +31,9 @@ def render(root: Path, settings: Settings, lang: str, theme: Theme, ascii_only: 
         status = t("tui.compiled", lang) if correction.id in linked else t("tui.advisory", lang)
         table.add_row(correction.id, t("tui.correction", lang), correction.text, status)
     for rule in rules:
+        sep = " - " if ascii_only else " · "
         status = (
-            f"{t('tui.enabled', lang)} · {rule.severity}"
+            f"{t('tui.enabled', lang)}{sep}{rule.severity}"
             if rule.enabled
             else t("tui.disabled", lang)
         )

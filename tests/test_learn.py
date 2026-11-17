@@ -271,3 +271,89 @@ def test_disabled_rule_does_not_block(tmp_path: Path) -> None:
         records=[{"event": "tool_post", "payload": {"command": "git push --force"}}],
     )
     assert run_learn(ctx) == []
+
+
+def test_correction_survives_corrupt_ledger(tmp_path: Path) -> None:
+    """Regression: the old code re-read the ledger and crashed or returned the previous id."""
+    record_correction(tmp_path, "first correction")
+    ledger = paths.ledger_path(tmp_path)
+    with ledger.open("a", encoding="utf-8") as handle:
+        handle.write("{broken\n")
+    correction, created = record_correction(tmp_path, "second correction")
+    assert created
+    assert correction.id == "C002"
+    assert correction.text == "second correction"
+
+
+def test_secret_correction_dedupes_after_redaction(tmp_path: Path) -> None:
+    first, created = record_correction(tmp_path, "never commit AKIAIOSFODNN7EXAMPLE")
+    assert created
+    again, created_again = record_correction(tmp_path, "never commit AKIAIOSFODNN7EXAMPLE")
+    assert not created_again
+    assert again.id == first.id
+    assert len(list_corrections(tmp_path)) == 1
+
+
+def test_compile_import_ids_include_scope(tmp_path: Path) -> None:
+    a, _ = record_correction(tmp_path, "never import django in src/a.py")
+    b, _ = record_correction(tmp_path, "never import django in src/b.py")
+    rule_a = compile_correction(a).rule
+    rule_b = compile_correction(b).rule
+    assert rule_a is not None and rule_b is not None
+    assert rule_a.id != rule_b.id
+
+
+def test_compiled_command_rule_respects_word_boundary(tmp_path: Path) -> None:
+    correction, _ = record_correction(tmp_path, "never run `git push --force`")
+    rule = compile_correction(correction).rule
+    assert rule is not None
+    assert apply_rule(rule, [], ["git push --force"])
+    assert apply_rule(rule, [], ["git push --force-with-lease"]) == []
+
+
+def test_compiled_import_rule_catches_combined_import(tmp_path: Path) -> None:
+    correction, _ = record_correction(tmp_path, "never import django in src/**/*.py")
+    rule = compile_correction(correction).rule
+    assert rule is not None
+    assert apply_rule(rule, [DiffFile("src/a.py", ("import os, django",))])
+    assert apply_rule(rule, [DiffFile("src/a.py", ("import os",))]) == []
+
+
+def test_upsert_block_removes_stray_end_marker(tmp_path: Path) -> None:
+    stray = f"text\n{MARKER_END}\nmore\n"
+    once = upsert_block(stray, f"{MARKER_START}\nblock\n{MARKER_END}")
+    twice = upsert_block(once, f"{MARKER_START}\nblock\n{MARKER_END}")
+    assert once == twice
+    assert once.count(MARKER_START) == 1
+    assert once.count(MARKER_END) == 1
+
+
+def test_export_refuses_target_outside_project(tmp_path: Path) -> None:
+    with pytest.raises(ValueError):
+        write_export(tmp_path, [], target="../escape.md")
+
+
+def test_save_rules_validates(tmp_path: Path) -> None:
+    with pytest.raises(RuleError):
+        save_rules(tmp_path / "rules.toml", [Rule(id="bad", description="x", severity="nuclear")])
+    assert not (tmp_path / "rules.toml").exists()
+
+
+def test_backtest_redacts_samples(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    _git(repo, "config", "user.email", "t@example.com")
+    _git(repo, "config", "user.name", "t")
+    (repo / "app.py").write_text('KEY = "AKIAIOSFODNN7EXAMPLE"\n', encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "add key")
+    rule = Rule(
+        id="key",
+        description="no key",
+        scope="**/*.py",
+        forbid_added_regex=(r"AKIA",),
+    )
+    result = backtest(repo, rule)
+    assert result.samples
+    assert "AKIAIOSFODNN7EXAMPLE" not in str(result.samples)
