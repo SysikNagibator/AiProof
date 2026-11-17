@@ -91,7 +91,7 @@
   <em>claims</em> against real evidence — git, test output, files, the hash-chained ledger — and blocks
   a false “I'm finished” at the Stop hook.</p>
   <div class="badges">
-    <span class="badge">v<b>0.1.0</b></span>
+    <span class="badge">v<b>0.1.1</b></span>
     <span class="badge"><b>offline</b> · no telemetry</span>
     <span class="badge"><b>307</b> tests · 89% coverage</span>
     <span class="badge">MIT <b>© SYSIK</b></span>
@@ -100,13 +100,13 @@
 
 <section>
   <h2>Install</h2>
-  <p class="note">Not on PyPI/npm yet (verified 2026-11-17). Install from the GitHub tag or the
-  release wheel. Do <strong>not</strong> run <code>pipx install aiproof-sysik</code> — that package does not exist.</p>
-<pre><span class="c"># recommended: isolated CLI pinned to the release tag</span>
-pipx install "git+https://github.com/SysikNagibator/AiProof.git@v0.1.0"
+  <p class="note">Published on PyPI and npm as <code>aiproof-sysik</code>. Every release
+  binary is verified against <code>SHA256SUMS</code>.</p>
+<pre><span class="c"># recommended: isolated CLI</span>
+pipx install aiproof-sysik
 
-<span class="c"># or the wheel from the release page</span>
-pip install https://github.com/SysikNagibator/AiProof/releases/download/v0.1.0/aiproof_sysik-0.1.0-py3-none-any.whl
+<span class="c"># or npm (downloads a verified standalone binary)</span>
+npm install -g aiproof-sysik
 
 <span class="c"># then, inside your project</span>
 aiproof init      <span class="c"># install hooks, freeze pinned settings, start the ledger</span>
@@ -145,7 +145,7 @@ aiproof tui       <span class="c"># dashboard</span></pre>
   <h2>Read more</h2>
   <ul class="links">
     <li><a href="https://github.com/SysikNagibator/AiProof">Repository</a></li>
-    <li><a href="https://github.com/SysikNagibator/AiProof/releases/tag/v0.1.0">Release v0.1.0</a></li>
+    <li><a href="https://github.com/SysikNagibator/AiProof/releases/tag/v0.1.1">Release v0.1.1</a></li>
     <li><a href="https://github.com/SysikNagibator/AiProof/blob/main/README.md">README</a></li>
     <li><a href="https://github.com/SysikNagibator/AiProof/blob/main/docs/BENCH.md">Benchmark</a></li>
     <li><a href="https://github.com/SysikNagibator/AiProof/blob/main/docs/AGENTS_SUPPORT.md">Supported agents</a></li>

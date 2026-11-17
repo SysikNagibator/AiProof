@@ -55,7 +55,7 @@ the explicit `aiproof update --check`.
 ## 60-second demo
 
 ```bash
-pipx install "git+https://github.com/SysikNagibator/AiProof.git@v0.1.0"
+pipx install aiproof-sysik
 cd your-project
 aiproof init            # install hooks, freeze pinned settings, start the ledger
 aiproof doctor          # verify the install
@@ -116,20 +116,15 @@ Full pipeline, DSL and honest backtest limits: [`docs/LEARN.md`](docs/LEARN.md).
 
 ## Install
 
-> **Not on PyPI/npm yet.** The Python distribution name `aiproof-sysik` and the npm name
-> `aiproof-sysik` are reserved for us, but **nothing is published there today** (verified
-> 2026-11-17). Install from GitHub until the first registry release. Do **not** run
-> `pipx install aiproof-sysik` yet — it does not exist and will fail.
-
 ```bash
-# recommended: isolated CLI, pinned to a release tag
-pipx install "git+https://github.com/SysikNagibator/AiProof.git@v0.1.0"
+# recommended: isolated CLI
+pipx install aiproof-sysik
 
-# or with pip (same command is exposed: `aiproof`)
-pip install "git+https://github.com/SysikNagibator/AiProof.git@v0.1.0"
+# or with pip (the same `aiproof` command is exposed)
+pip install aiproof-sysik
 
-# or the prebuilt wheel from the release page
-pip install https://github.com/SysikNagibator/AiProof/releases/download/v0.1.0/aiproof_sysik-0.1.0-py3-none-any.whl
+# or npm (downloads a verified standalone binary)
+npm install -g aiproof-sysik
 
 # or from a clone
 git clone https://github.com/SysikNagibator/AiProof.git
@@ -138,15 +133,12 @@ cd AiProof && pip install .
 
 Prebuilt single-file binaries for **Linux x64, Linux arm64 and Windows x64** are attached to
 each [release](https://github.com/SysikNagibator/AiProof/releases) with `SHA256SUMS`. macOS
-binaries are built by the release workflow only when a macOS runner is available; on this
-release use the wheel or the `pipx` command above.
+binaries are built by the release workflow only when a macOS runner is available; on macOS use
+the wheel or `pipx`. The npm wrapper verifies every downloaded binary against that manifest.
 
 > **Note on the CLI name.** The command is `aiproof`. PyPI already has an unrelated package
-> literally named `aiproof`, so ours will be **`aiproof-sysik`** once published. See
+> literally named `aiproof`, so ours is published as **`aiproof-sysik`** on PyPI and npm. See
 > [`docs/DECISIONS.md`](docs/DECISIONS.md).
-
-Node users: an `npx` shim lives in [`npm/`](npm/) (also unpublished — run it from a clone in
-the meantime). Prebuilt binaries and the wheel are produced by the release workflow.
 
 ---
 

@@ -10,16 +10,18 @@ was already taken by an unrelated package when this project started, so publishi
 `aiproof` was impossible. The installed command is still **`aiproof`** and the product is
 still **AiProof by SYSIK**.
 
-**Status (2026-11-17): not published yet.** `aiproof-sysik` is absent from PyPI (404) and npm
-(404); publishing needs registry credentials we do not hold. Until then the supported install
-is from GitHub — `pipx install "git+https://github.com/SysikNagibator/AiProof.git@v0.1.0"`
-or the wheel attached to the [release](https://github.com/SysikNagibator/AiProof/releases).
-Do **not** tell users to `pipx install aiproof-sysik` yet; that fails.
+**Status (2026-11-17): published.** `aiproof-sysik` 0.1.0 is live on
+[PyPI](https://pypi.org/project/aiproof-sysik/) and
+[npm](https://www.npmjs.com/package/aiproof-sysik). Install with `pipx install aiproof-sysik`,
+`pip install aiproof-sysik` or `npm install -g aiproof-sysik`. Future releases use
+`.github/workflows/publish.yml` (PyPI OIDC trusted publishing, npm `NPM_TOKEN` secret); it is
+manual on purpose, because a published version can never be overwritten.
 
-**Consequence:** once published, `pip install aiproof-sysik` gives the `aiproof` command, which
-collides with the unrelated `aiproof` package if someone installs both. This is documented
-rather than worked around; `pipx install aiproof-sysik` avoids the ambiguity by isolating the
-environment. The npm names `aiproof-sysik` and `aiproof` are both still free.
+**Consequence:** `pip install aiproof-sysik` gives the `aiproof` command, which collides with
+the unrelated `aiproof` package if someone installs both. This is documented rather than worked
+around; `pipx install aiproof-sysik` avoids the ambiguity by isolating the environment. The
+npm name `aiproof` is still free, but we deliberately publish under the same
+`aiproof-sysik` name on both registries.
 
 ## D2 — Only Claude Code hooks are `verified`
 

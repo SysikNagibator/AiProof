@@ -111,10 +111,13 @@ jobs:
             sha256sum -c SHA256SUMS
             ```
 
-            Install (the package is **not on PyPI/npm yet** — verified 2026-11-17):
+            Install:
 
             ```
-            pipx install "git+https://github.com/SysikNagibator/AiProof.git@${{ github.ref_name }}"
+            # Python (all platforms)
+            pipx install aiproof-sysik
+            # npm (downloads a verified standalone binary)
+            npm install -g aiproof-sysik
             # or the wheel attached below:
             pip install aiproof_sysik-<version>-py3-none-any.whl
             ```

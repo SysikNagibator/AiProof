@@ -101,8 +101,8 @@ async function main() {
     // Never fail the install hard: a system `aiproof` may be present.
     console.warn(
       `aiproof-sysik: could not fetch a release binary (${err.message}).\n` +
-        "Install the CLI from GitHub instead:\n" +
-        '  pipx install "git+https://github.com/SysikNagibator/AiProof.git@v0.1.0"'
+        "Install the CLI from PyPI instead:\n" +
+        "  pipx install aiproof-sysik"
     );
   }
 }

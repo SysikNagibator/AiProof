@@ -4,6 +4,19 @@ All notable changes to AiProof are documented here. This project uses
 [Semantic Versioning](https://semver.org/) and
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+## [0.1.1] — 2026-11-17
+
+### Added
+- **Published on PyPI and npm as `aiproof-sysik`.** `pipx install aiproof-sysik`,
+  `pip install aiproof-sysik` and `npm install -g aiproof-sysik` work; the npm wrapper downloads
+  the release binary and verifies it against `SHA256SUMS`.
+- **`Publish` workflow** (manual `workflow_dispatch`): PyPI through OIDC trusted publishing and
+  npm through an `NPM_TOKEN` secret, with `twine check` before upload.
+
+### Fixed
+- Repository, Pages, PyPI and npm pages no longer claim the package is unpublished. Install
+  instructions lead with the registries; GitHub remains the fallback.
+
 ## [Unreleased]
 
 ### Added

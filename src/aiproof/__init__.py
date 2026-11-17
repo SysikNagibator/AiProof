@@ -4,7 +4,7 @@ from __future__ import annotations
 
 __all__ = ["__author__", "__version__", "version_string"]
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 __author__ = "SYSIK"
 
 

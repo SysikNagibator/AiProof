@@ -24,11 +24,11 @@ Python **>= 3.11** (uses `tomllib`, `StrEnum`, `datetime.UTC`).
 | `sign` | `cryptography>=42` | reserved for ed25519 receipt signing (not implemented yet) |
 | `dev` | `pytest`, `pytest-cov`, `ruff`, `mypy`, `pyinstaller` | development and packaging |
 
-Install (the package is not on PyPI yet — see [`DECISIONS.md`](DECISIONS.md) D1):
+Install (see [`DECISIONS.md`](DECISIONS.md) D1):
 
 ```sh
-pip install "aiproof-sysik[sign] @ git+https://github.com/SysikNagibator/AiProof.git@v0.1.0"
-pip install "aiproof-sysik[dev] @ git+https://github.com/SysikNagibator/AiProof.git@v0.1.0"
+pip install "aiproof-sysik[sign]"
+pip install "aiproof-sysik[dev]"
 ```
 
 ## Why not more

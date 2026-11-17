@@ -1,6 +1,6 @@
 {
   "name": "aiproof-sysik",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "AiProof by SYSIK - the agent says done. AiProof checks the receipts.",
   "keywords": ["ai", "agents", "verification", "cli", "hooks", "aiproof"],
   "license": "MIT",

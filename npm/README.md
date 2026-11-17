@@ -3,15 +3,9 @@
 A tiny launcher that downloads the correct **AiProof by SYSIK** binary for your platform,
 **verifies its SHA-256 against the release `SHA256SUMS`**, and exposes the `aiproof` command.
 
-> **Not published on npm yet** (verified 2026-11-17). Until it is, install from GitHub:
-> `pipx install "git+https://github.com/SysikNagibator/AiProof.git@v0.1.0"`, or run this
-> wrapper from a clone with `node npm/install.js`.
-
-Once published:
-
 ```sh
 npm install -g aiproof-sysik
-aiproof --version      # AiProof 0.1.0 by SYSIK
+aiproof --version      # AiProof 0.1.1 by SYSIK
 ```
 
 ## How it works
@@ -22,10 +16,10 @@ aiproof --version      # AiProof 0.1.0 by SYSIK
 * `bin/aiproof.js` is the launcher. It executes the verified binary under `vendor/`, or falls
   back to a system `aiproof` (e.g. installed with `pipx`) if the download was skipped.
 
-Published binaries on the v0.1.0 release: Linux x64, Linux arm64 and Windows x64. macOS x64 /
-arm64 builds run only when GitHub provides a macOS runner (they were not available for v0.1.0),
-so macOS users should install from the wheel or `pipx`. Windows arm64 is **not** built yet; the
-installer then prints a clear message and leaves a system `aiproof` usable.
+Published binaries on the v0.1.1 release: Linux x64, Linux arm64 and Windows x64. macOS x64 /
+arm64 builds run only when GitHub provides a macOS runner, so on macOS install with
+`pipx install aiproof-sysik` instead. Windows arm64 is **not** built yet; the installer then
+prints a clear message and leaves a system `aiproof` usable.
 
 ## Configuration
 
@@ -37,8 +31,7 @@ installer then prints a clear message and leaves a system `aiproof` usable.
 
 ## Prefer pipx?
 
-The npm wrapper is optional. Once the Python package is on PyPI, `pipx install aiproof-sysik`
-gives the same `aiproof` command without any download step. Today, install from GitHub:
-`pipx install "git+https://github.com/SysikNagibator/AiProof.git@v0.1.0"`.
+The npm wrapper is optional. `pipx install aiproof-sysik` (or `pip install aiproof-sysik`)
+gives the same `aiproof` command from PyPI without any download step.
 
 MIT © SYSIK.

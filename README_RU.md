@@ -55,7 +55,7 @@ AiProof проверил утверждения и нашёл проблемы:
 ## Демонстрация за 60 секунд
 
 ```bash
-pipx install "git+https://github.com/SysikNagibator/AiProof.git@v0.1.0"
+pipx install aiproof-sysik
 cd ваш-проект
 aiproof init            # хуки, заморозка пинов, журнал
 aiproof doctor          # проверка установки
@@ -117,20 +117,15 @@ DSL и честные ограничения бэктеста: [`docs/LEARN.md`]
 
 ## Установка
 
-> **Пока нет на PyPI/npm.** Имена `aiproof-sysik` (Python) и `aiproof-sysik` (npm) зарезервированы
-> за нами, но **сегодня там ничего не опубликовано** (проверено 2026-11-17). До первого релиза
-> в реестрах ставьте из GitHub. **Не выполняйте** `pipx install aiproof-sysik` — такого пакета
-> нет, команда упадёт.
-
 ```bash
-# рекомендуется: изолированный CLI, привязанный к тегу релиза
-pipx install "git+https://github.com/SysikNagibator/AiProof.git@v0.1.0"
+# рекомендуется: изолированный CLI
+pipx install aiproof-sysik
 
 # или через pip (та же команда `aiproof`)
-pip install "git+https://github.com/SysikNagibator/AiProof.git@v0.1.0"
+pip install aiproof-sysik
 
-# или готовый wheel со страницы релиза
-pip install https://github.com/SysikNagibator/AiProof/releases/download/v0.1.0/aiproof_sysik-0.1.0-py3-none-any.whl
+# или npm (скачивает проверенный standalone-бинарник)
+npm install -g aiproof-sysik
 
 # или из клона
 git clone https://github.com/SysikNagibator/AiProof.git
@@ -139,15 +134,12 @@ cd AiProof && pip install .
 
 Готовые single-file бинарники для **Linux x64, Linux arm64 и Windows x64** приложены к
 каждому [релизу](https://github.com/SysikNagibator/AiProof/releases) вместе с `SHA256SUMS`.
-Бинарники для macOS собираются релизным workflow только когда доступен macOS-раннер; в этом
-релизе используйте wheel или команду `pipx` выше.
+Бинарники для macOS собираются релизным workflow только когда доступен macOS-раннер; на macOS
+используйте wheel или `pipx`. npm-обёртка сверяет каждый скачанный бинарник с этим манифестом.
 
 > **О названии CLI.** Команда — `aiproof`. На PyPI уже занят несвязанный пакет с именем
-> `aiproof`, поэтому мы публикуемся как **`aiproof-sysik`**. См.
+> `aiproof`, поэтому мы публикуемся как **`aiproof-sysik`** на PyPI и npm. См.
 > [`docs/DECISIONS.md`](docs/DECISIONS.md).
-
-Для Node есть `npx`-шим в [`npm/`](npm/) (тоже пока не опубликован — запускайте из клона).
-Готовые бинарники и wheel собирает релизный workflow.
 
 ---
 
