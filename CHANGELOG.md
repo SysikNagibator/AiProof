@@ -7,6 +7,12 @@ All notable changes to AiProof are documented here. This project uses
 ## [Unreleased]
 
 ### Added
+- **Public release v0.1.0.** Tagged release with a universal wheel, an sdist, a
+  `SHA256SUMS` manifest and a PyInstaller `AiProof_Linux_x64` binary; the release workflow
+  now also builds the sdist/wheel and attaches them next to the platform binaries.
+- **TUI screenshot in both READMEs** (`docs/assets/tui.png`), generated from the real
+  renderer by `tools/gen_tui_screenshot.py` (rich → SVG → PNG), so it cannot drift from the
+  shipped UI.
 - **Phase 2 — learning from corrections.** `aiproof correct` records a human correction
   (redacted, de-duplicated, grouped) in the ledger. `aiproof learn compile` turns matching
   corrections into disabled rules via a declarative DSL; `learn backtest` replays a rule over
@@ -30,14 +36,32 @@ All notable changes to AiProof are documented here. This project uses
   presets per IDE, and CI/release workflows.
 
 ### Changed
-- Benchmark expanded from 30 to **31 scenarios**; detection 96%, false positives 0%, median
-  latency ~55–90 ms (host-dependent). `docs/BENCH_RESULTS.md` regenerated.
+- **Install instructions no longer point at unpublished registries.** `aiproof-sysik` is
+  absent from PyPI and npm (verified 2026-11-17), so the READMEs, `docs/DECISIONS.md`,
+  `docs/DEPENDENCIES.md` and the npm wrapper now install from the GitHub tag/wheel and warn
+  explicitly that `pipx install aiproof-sysik` fails today.
+- **Competitor comparison is concrete.** The abstract category table was replaced with
+  **isitdone** and **agent-guard-hooks** (verified against their registries/READMEs on
+  2026-11-17), including what AiProof uniquely does — claim-vs-evidence verification,
+  protecting its own settings from the agent, and learned rules with a git backtest — and an
+  honest note that no AI-agent verification project named **Calx** or **Reflex** was found.
+- Benchmark expanded from 30 to **31 scenarios**: **25 positives / 6 negatives**, detection
+  **96% (24/25)**, false positives **0% (6/6)**, median latency **~70 ms** (host-dependent).
+  The previously published 25/26 and 5/5 split was an arithmetic error; all docs now match
+  the runner's own output. `docs/BENCH_RESULTS.md` regenerated.
 - `DEFAULT_CHECKS` now includes `learn_rules`.
 - Full UI localization: all eleven catalogs now cover the same **276 keys** (menu, help,
   doctor, TUI, receipt, updates, plus localized CLI status output and wrapper messages),
   with no silent English fallbacks.
 
 ### Fixed
+- **Wheel build was broken.** `[tool.hatch.build.targets.wheel.force-include]` duplicated
+  every i18n catalog (`a second file is being added ... de.toml`), so `python -m build` could
+  not produce a wheel. The redundant table is gone; the wheel ships all 11 catalogs.
+- **npm wrapper pointed at a nonexistent repo.** `install.js` and `package.json` referenced
+  `github.com/SYSIK/aiproof`; they now use the canonical
+  `github.com/SysikNagibator/AiProof`, and the download-failure hint suggests the real GitHub
+  install instead of the unpublished package.
 - **Stop-hook cap actually stops.** After `MAX_BLOCKS` (or when Claude Code sets
   `stop_hook_active`), the decision is recorded as `capped` and no longer blocks. The gate
   previously kept returning `block`, which could trap an agent in an endless Stop loop and

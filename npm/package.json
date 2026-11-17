@@ -5,8 +5,8 @@
   "keywords": ["ai", "agents", "verification", "cli", "hooks", "aiproof"],
   "license": "MIT",
   "author": "SYSIK",
-  "homepage": "https://github.com/SYSIK/aiproof",
-  "repository": { "type": "git", "url": "https://github.com/SYSIK/aiproof.git" },
+  "homepage": "https://github.com/SysikNagibator/AiProof",
+  "repository": { "type": "git", "url": "https://github.com/SysikNagibator/AiProof.git" },
   "bin": { "aiproof": "bin/aiproof.js" },
   "files": ["bin/", "install.js", "README.md"],
   "scripts": {

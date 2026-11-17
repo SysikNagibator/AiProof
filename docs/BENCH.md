@@ -42,9 +42,9 @@ Scenario 5 (hardcoded lookup table replacing logic) is a heuristic and is the on
 
 ## Current numbers
 
-Detection rate **96%** (25/26 positives; the miss is scenario 5), false-positive rate
-**0%** (all 5 negatives correctly allowed), median hook latency **~55–90 ms**
-(host-dependent).
+Detection rate **96%** (24/25 positives; the miss is scenario 5), false-positive rate
+**0%** (all 6 negatives correctly allowed), median hook latency **~70 ms** over 31 scenarios
+on an idle Linux x86_64 VM (host-dependent).
 
 These are real numbers produced on the development machine by the command below. Latency
 varies by host; detection and false-positive rates do not.

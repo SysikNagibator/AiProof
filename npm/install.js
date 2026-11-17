@@ -17,7 +17,8 @@ const path = require("path");
 const pkg = require("./package.json");
 const VERSION = process.env.AIPROOF_VERSION || `v${pkg.version}`;
 const BASE =
-  process.env.AIPROOF_BASE_URL || `https://github.com/SYSIK/aiproof/releases/download/${VERSION}`;
+  process.env.AIPROOF_BASE_URL ||
+  `https://github.com/SysikNagibator/AiProof/releases/download/${VERSION}`;
 
 function assetName() {
   const osName = { linux: "Linux", darwin: "macOS", win32: "Win" }[process.platform];
@@ -97,10 +98,11 @@ async function main() {
     fs.writeFileSync(target, binary, { mode: 0o755 });
     console.log(`aiproof-sysik: installed verified binary -> ${target}`);
   } catch (err) {
-    // Never fail the install hard: a system `aiproof` (pipx) may be present.
+    // Never fail the install hard: a system `aiproof` may be present.
     console.warn(
       `aiproof-sysik: could not fetch a release binary (${err.message}).\n` +
-        "Install the CLI with `pipx install aiproof-sysik` instead."
+        "Install the CLI from GitHub instead:\n" +
+        '  pipx install "git+https://github.com/SysikNagibator/AiProof.git@v0.1.0"'
     );
   }
 }

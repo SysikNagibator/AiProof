@@ -44,9 +44,6 @@ aiproof = "aiproof.cli:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/aiproof"]
 
-[tool.hatch.build.targets.wheel.force-include]
-"src/aiproof/i18n/catalogs" = "aiproof/i18n/catalogs"
-
 [tool.ruff]
 line-length = 100
 target-version = "py311"

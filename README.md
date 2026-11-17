@@ -19,6 +19,8 @@ $ aiproof status
   agents: claude-code
 ```
 
+![AiProof TUI — the dashboard menu](docs/assets/tui.png)
+
 ---
 
 ## Why this exists
@@ -49,7 +51,7 @@ the explicit `aiproof update --check`.
 ## 60-second demo
 
 ```bash
-pipx install aiproof-sysik
+pipx install "git+https://github.com/SysikNagibator/AiProof.git@v0.1.0"
 cd your-project
 aiproof init            # install hooks, freeze pinned settings, start the ledger
 aiproof doctor          # verify the install
@@ -110,20 +112,35 @@ Full pipeline, DSL and honest backtest limits: [`docs/LEARN.md`](docs/LEARN.md).
 
 ## Install
 
+> **Not on PyPI/npm yet.** The Python distribution name `aiproof-sysik` and the npm name
+> `aiproof-sysik` are reserved for us, but **nothing is published there today** (verified
+> 2026-11-17). Install from GitHub until the first registry release. Do **not** run
+> `pipx install aiproof-sysik` yet — it does not exist and will fail.
+
 ```bash
-pipx install aiproof-sysik      # recommended (isolated CLI)
-# or
-pip install aiproof-sysik
-# or, from source
-pip install -e .
+# recommended: isolated CLI, pinned to a release tag
+pipx install "git+https://github.com/SysikNagibator/AiProof.git@v0.1.0"
+
+# or with pip (same command is exposed: `aiproof`)
+pip install "git+https://github.com/SysikNagibator/AiProof.git@v0.1.0"
+
+# or the prebuilt wheel from the release page
+pip install https://github.com/SysikNagibator/AiProof/releases/download/v0.1.0/aiproof_sysik-0.1.0-py3-none-any.whl
+
+# or from a clone
+git clone https://github.com/SysikNagibator/AiProof.git
+cd AiProof && pip install .
 ```
 
+Prebuilt single-file binaries for Linux/macOS/Windows are attached to each
+[release](https://github.com/SysikNagibator/AiProof/releases) with `SHA256SUMS`.
+
 > **Note on the CLI name.** The command is `aiproof`. PyPI already has an unrelated package
-> literally named `aiproof`, so we publish as **`aiproof-sysik`**. See
+> literally named `aiproof`, so ours will be **`aiproof-sysik`** once published. See
 > [`docs/DECISIONS.md`](docs/DECISIONS.md).
 
-Node users: an `npx` shim lives in [`npm/`](npm/). Prebuilt binaries are produced by the
-release workflow.
+Node users: an `npx` shim lives in [`npm/`](npm/) (also unpublished — run it from a clone in
+the meantime). Prebuilt binaries and the wheel are produced by the release workflow.
 
 ---
 
@@ -228,7 +245,7 @@ We publish real, reproducible numbers measured on this codebase — no marketing
 aiproof bench
 ```
 
-31 deterministic scenarios (26 attack/positive, 5 benign/negative) across test tampering,
+31 deterministic scenarios (25 attack/positive, 6 benign/negative) across test tampering,
 fake commits, secret leaks, config tampering, ledger tampering, multilingual false claims, a
 monorepo latency check, the gate cap, and a learned-rule block. See
 [`docs/BENCH.md`](docs/BENCH.md) and the generated
@@ -236,9 +253,16 @@ monorepo latency check, the gate cap, and a learned-rule block. See
 
 | metric | value |
 | --- | --- |
-| detection rate | **96%** (25/26 positives; the miss is scenario 5, below) |
-| false-positive rate | **0%** (5/5 negatives correctly allowed) |
-| median hook latency | **~55–90 ms** (host-dependent) |
+| detection rate | **96%** (24/25 positives; the miss is scenario 5, below) |
+| false-positive rate | **0%** (6/6 negatives correctly allowed) |
+| median hook latency | **~70 ms** median over 31 scenarios on an idle Linux x86_64 VM (host-dependent) |
+
+Reproduce it yourself — the verdicts are deterministic; only the timings vary:
+
+```bash
+aiproof bench          # table
+aiproof bench --json   # machine-readable
+```
 
 ---
 
@@ -271,19 +295,35 @@ Full analysis: [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md).
 
 ## How it compares
 
-AiProof is not the first "safe agent" tool; it occupies a specific niche — **offline,
-deterministic, claim-vs-evidence verification with a blocking gate and a learning layer.**
-Feature sets of the tools below change; verify them yourself before relying on this table.
+AiProof is not the first "don't trust the agent's done" tool. The closest projects are
+**isitdone** and **agent-guard-hooks**; we name them here instead of hiding behind abstract
+categories. Feature sets move fast — the facts below were checked on **2026-11-17** against
+each project's own docs/registry entry; verify before relying on it.
 
-| | AiProof | Sandboxing (containers/VMs) | Guardrail/proxy layers | Test-coverage gates |
-| --- | --- | --- | --- | --- |
-| primary goal | verify the agent's *claims* against evidence | isolate the agent from the host | filter prompts/tool calls in flight | fail CI on coverage loss |
-| offline / no network | **yes** | yes | often a proxy/cloud | yes |
-| blocks a false "done" mid-session | **yes (Claude Code)** | n/a | sometimes | no |
-| works without hooks (wrapper) | **yes, post-hoc** | yes | varies | yes |
-| learns from human corrections | **yes (Phase 2)** | no | partly | no |
-| stores code / sends telemetry | **no** | no | varies | no |
-| multilingual claim parsing | **11 languages** | n/a | mostly EN | n/a |
+| | **AiProof** | **isitdone** | **agent-guard-hooks** |
+| --- | --- | --- | --- |
+| what it is | verify the agent's *claims* against evidence | run the repo's *real* checks and refuse "done" until they pass | a bundle of *behavior guardrails* |
+| offline / zero-LLM / no telemetry | **yes** | yes (zero-dep, no network) | yes (Python stdlib only) |
+| runs your test / lint / typecheck suite | **no** — it checks claims, it does not execute your suite | **yes** (the repo's real commands) | partly (re-runs tests for mutation checks) |
+| verifies the agent's *claim wording* vs evidence (counts, commit, files) | **yes** (11 languages) | no | no |
+| blocks a false "done" mid-session | **yes** (Claude Code, verified) | yes (Stop hook) | yes (Stop hook) |
+| stops the agent from relaxing *your* guard config | **yes** — pinned settings + `config_integrity` + tamper guard on protected paths | no (not its focus) | partly (outbound-action denylist + user allowlist) |
+| learns executable rules from your corrections + backtest on history | **yes** (`aiproof correct` → `learn compile` → `learn backtest`) | no | no |
+| audit trail | hash-chained, redacted ledger + receipts | git-bound receipt | audit log |
+| agents with *blocking* support | 1 verified (Claude Code) + wrapper everywhere (49 registered, honestly labelled) | ~12 (Claude Code, Codex, Cursor, Gemini, …) | 3 (Claude Code, Codex CLI, Gemini CLI) |
+| dependencies | `rich`, `wcwidth`, `tomli-w` | none (Node) | none (Python stdlib) |
+
+They **compose**: let isitdone or agent-guard run your suite and block on red tests, and let
+AiProof verify the agent's *claims* (test counts, commits, files), keep your guard config
+tamper-evident, and learn rules from your corrections. AiProof does **not** try to replace a
+real test run.
+
+> We also looked for **Calx** and **Reflex** in this niche. As of 2026-11-17 there is no
+> verifiable AI-coding-agent *verification* project by those names: PyPI/npm `calx` and
+> `reflex` are an unrelated spreadsheet engine and web framework, and GitHub `calx`/`reflex`
+> repos are a spreadsheet/CLI/language/game library and the Reflex web framework. If you meant
+> specific repos, open an issue with links and we will add an honest column — we do not invent
+> competitor features.
 
 The point of AiProof is narrow and honest: catch the agent lying about *this session*, with
 evidence you can inspect, on your machine.

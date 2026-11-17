@@ -3,16 +3,23 @@
 A running log of the choices that shaped AiProof, and why. Newest themes first; each entry
 records the decision and the reasoning so future contributors do not relitigate it blind.
 
-## D1 — PyPI name `aiproof-sysik`, CLI name `aiproof`
+## D1 — distribution names `aiproof-sysik` (PyPI) and `aiproof-sysik` (npm); CLI name `aiproof`
 
-The PyPI distribution is **`aiproof-sysik`**. The bare PyPI name `aiproof` was already taken
-when this project started, so publishing under `aiproof` was impossible. The installed
-command is still **`aiproof`** and the product is still **AiProof by SYSIK**.
+The distribution is **`aiproof-sysik`** on both PyPI and npm. The bare PyPI name `aiproof`
+was already taken by an unrelated package when this project started, so publishing under
+`aiproof` was impossible. The installed command is still **`aiproof`** and the product is
+still **AiProof by SYSIK**.
 
-**Consequence:** `pip install aiproof-sysik` gives you the `aiproof` command, which
+**Status (2026-11-17): not published yet.** `aiproof-sysik` is absent from PyPI (404) and npm
+(404); publishing needs registry credentials we do not hold. Until then the supported install
+is from GitHub — `pipx install "git+https://github.com/SysikNagibator/AiProof.git@v0.1.0"`
+or the wheel attached to the [release](https://github.com/SysikNagibator/AiProof/releases).
+Do **not** tell users to `pipx install aiproof-sysik` yet; that fails.
+
+**Consequence:** once published, `pip install aiproof-sysik` gives the `aiproof` command, which
 collides with the unrelated `aiproof` package if someone installs both. This is documented
-rather than worked around; `pipx install aiproof-sysik` avoids the ambiguity by isolating
-the environment. The npm scope is free: `aiproof-sysik` and `aiproof` are both available.
+rather than worked around; `pipx install aiproof-sysik` avoids the ambiguity by isolating the
+environment. The npm names `aiproof-sysik` and `aiproof` are both still free.
 
 ## D2 — Only Claude Code hooks are `verified`
 
