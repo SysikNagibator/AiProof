@@ -38,16 +38,21 @@ def check(claim: Claim, ctx: CheckContext) -> CheckResult:
 
     for raw in files:
         name = str(raw).replace("\\", "/")
-        if name in changed:
-            evidence.append(Evidence("git", f"{name} changed in working tree", {"file": name}))
-            continue
         path = ctx.root / name
         current = gitutil.file_sha256(path)
-        before = snapshot.get(name)
-        if before is not None and current != before:
-            evidence.append(
-                Evidence("snapshot", f"{name} differs from session snapshot", {"file": name})
-            )
+        if name in snapshot:
+            # Authoritative for files that already differed from HEAD at session
+            # start: otherwise a dirty working tree would let an unchanged file
+            # pass on the ``changed`` / ``start_commit`` fallbacks below.
+            if current != snapshot[name]:
+                evidence.append(
+                    Evidence("snapshot", f"{name} differs from session snapshot", {"file": name})
+                )
+            else:
+                missing.append(name)
+            continue
+        if name in changed:
+            evidence.append(Evidence("git", f"{name} changed in working tree", {"file": name}))
             continue
         if ctx.start_commit is not None:
             baseline = gitutil.file_content(ctx.root, name, ctx.start_commit)

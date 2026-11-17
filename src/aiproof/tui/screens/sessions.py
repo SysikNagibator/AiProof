@@ -16,8 +16,8 @@ def render(root: Path, settings: Settings, lang: str, theme: Theme, ascii_only: 
     """Render the list of recorded sessions."""
     table = Table(title=t("menu.sessions", lang), border_style=theme.primary)
     table.add_column("#", justify="right")
-    table.add_column("session")
-    table.add_column("events", justify="right")
+    table.add_column(t("tui.session", lang))
+    table.add_column(t("tui.events", lang), justify="right")
     counts: dict[str, int] = {}
     order: list[str] = []
     for record in LedgerStore(root).records():
@@ -31,5 +31,5 @@ def render(root: Path, settings: Settings, lang: str, theme: Theme, ascii_only: 
     for index, sid in enumerate(order[-50:], start=1):
         table.add_row(str(index), sid, str(counts[sid]))
     if not order:
-        table.add_row("-", "no sessions yet", "0")
+        table.add_row("-", t("tui.no_sessions", lang), "0")
     return table

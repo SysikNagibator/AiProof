@@ -30,6 +30,28 @@ def test_guard_tool_write_denied() -> None:
     assert reason and "protected" in reason
 
 
+def test_guard_tool_write_denied_absolute_path() -> None:
+    """Editor tools send absolute paths; the guard must still deny them."""
+    settings = Settings()
+    for path in (
+        "/tmp/proj/.claude/settings.json",
+        "/tmp/proj/.claude/settings.local.json",
+        "/tmp/proj/.git/hooks/pre-commit",
+        "/tmp/proj/.aiproof/rules.toml",
+        "/tmp/proj/.mcp.json",
+    ):
+        reason = tamper_guard.guard_tool("Write", {"file_path": path}, settings)
+        assert reason, f"absolute protected path not denied: {path}"
+
+
+def test_guard_tool_edit_denied_absolute_path() -> None:
+    settings = Settings()
+    reason = tamper_guard.guard_tool(
+        "Edit", {"file_path": "/tmp/proj/.claude/settings.json"}, settings
+    )
+    assert reason and "protected" in reason
+
+
 def test_guard_tool_bash_denied() -> None:
     settings = Settings()
     reason = tamper_guard.guard_tool("Bash", {"command": "sed -i s/x/y/ .mcp.json"}, settings)

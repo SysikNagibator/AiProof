@@ -19,7 +19,15 @@ def _expand(pattern: str) -> str:
 
 def _matches(path: str, patterns: tuple[str, ...]) -> bool:
     candidate = path.replace("\\", "/")
-    return any(fnmatch.fnmatch(candidate, _expand(pat)) for pat in patterns)
+    for pattern in patterns:
+        expanded = _expand(pattern)
+        if fnmatch.fnmatch(candidate, expanded):
+            return True
+        # Editor tools send absolute paths; a repo-relative protected pattern must
+        # still match them, so also try the pattern anchored at any directory.
+        if not expanded.startswith(("**", "/")) and fnmatch.fnmatch(candidate, "**/" + expanded):
+            return True
+    return False
 
 
 def protected_path(path: Path, settings_patterns: tuple[str, ...]) -> bool:
@@ -75,7 +83,7 @@ def _tampered_files(ctx: CheckContext) -> list[str]:
         changed += [rel for rel in snapshot if rel not in current]  # deleted
         changed += [rel for rel in current if rel not in snapshot]  # created in-session
         return sorted(set(changed))
-    return [f for f in gitutil.changed_files(ctx.root) if _matches(f, protected)]
+    return [f for f in gitutil.tracked_changed_files(ctx.root) if _matches(f, protected)]
 
 
 def run(ctx: CheckContext) -> list[IntegrityFinding]:

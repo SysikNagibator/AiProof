@@ -83,16 +83,22 @@ def extract_claims(text: str, languages: tuple[str, ...] | None = None) -> list[
 
 
 def _dedupe(claims: list[Claim]) -> list[Claim]:
-    """Drop claims of the same type whose spans overlap an earlier, wider one."""
+    """Drop claims of the same type whose spans overlap an earlier, wider one.
+
+    Claims are sorted by start (wider first on ties), so any earlier kept claim
+    of the same type starts at or before the current claim. Overlap therefore
+    reduces to ``current.start < max_end_of_kept`` for that type, giving a
+    linear pass instead of an O(n^2) pairwise comparison.
+    """
     claims.sort(key=lambda c: (c.span[0], -(c.span[1] - c.span[0])))
     kept: list[Claim] = []
+    max_end: dict[ClaimType, int] = {}
     for claim in claims:
-        overlap = any(
-            k.type == claim.type and not (claim.span[1] <= k.span[0] or claim.span[0] >= k.span[1])
-            for k in kept
-        )
-        if not overlap:
-            kept.append(claim)
+        start, end = claim.span
+        if start < max_end.get(claim.type, -1):
+            continue
+        kept.append(claim)
+        max_end[claim.type] = max(max_end.get(claim.type, end), end)
     return kept
 
 

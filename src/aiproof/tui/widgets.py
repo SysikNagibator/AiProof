@@ -14,18 +14,18 @@ from aiproof.tui.logo import logo
 from aiproof.tui.theme import Theme
 
 MENU: tuple[tuple[str, str, str], ...] = (
-    ("dashboard", "menu.dashboard", "status, agent, ledger"),
-    ("live_feed", "menu.live_feed", "real-time events"),
-    ("sessions", "menu.sessions", "past sessions"),
-    ("checks", "menu.checks", "strictness and toggles"),
-    ("secrets", "menu.secrets", "scan and redact"),
-    ("rules", "menu.rules", "corrections"),
-    ("settings", "menu.settings", "language, theme, agents"),
-    ("doctor", "menu.doctor", "install integrity"),
-    ("logs", "menu.logs", "aiproof.log"),
-    ("update", "menu.update", "GitHub releases"),
-    ("about", "menu.about", "version and license"),
-    ("exit", "menu.exit", "leave AiProof"),
+    ("dashboard", "menu.dashboard", "menu_desc.dashboard"),
+    ("live_feed", "menu.live_feed", "menu_desc.live_feed"),
+    ("sessions", "menu.sessions", "menu_desc.sessions"),
+    ("checks", "menu.checks", "menu_desc.checks"),
+    ("secrets", "menu.secrets", "menu_desc.secrets"),
+    ("rules", "menu.rules", "menu_desc.rules"),
+    ("settings", "menu.settings", "menu_desc.settings"),
+    ("doctor", "menu.doctor", "menu_desc.doctor"),
+    ("logs", "menu.logs", "menu_desc.logs"),
+    ("update", "menu.update", "menu_desc.update"),
+    ("about", "menu.about", "menu_desc.about"),
+    ("exit", "menu.exit", "menu_desc.exit"),
 )
 
 
@@ -70,7 +70,7 @@ def menu(theme: Theme, *, selected: int, lang: str, narrow: bool = False) -> Tab
         if narrow:
             table.add_row("", Text(label, style=style))
         else:
-            table.add_row("", Text(label, style=style), Text(desc, style=theme.dim))
+            table.add_row("", Text(label, style=style), Text(t(desc, lang), style=theme.dim))
     return table
 
 
@@ -83,18 +83,18 @@ def help_overlay(theme: Theme, lang: str) -> Panel:
     """Render the help overlay."""
     text = Text()
     text.append("W/S, ↑/↓ ", style=theme.accent)
-    text.append("move\n")
+    text.append(t("helpo.move", lang) + "\n")
     text.append("Enter ", style=theme.accent)
-    text.append("open\n")
+    text.append(t("helpo.open", lang) + "\n")
     text.append("Esc/Backspace ", style=theme.accent)
-    text.append("back\n")
+    text.append(t("helpo.back", lang) + "\n")
     text.append("1-9 ", style=theme.accent)
-    text.append("quick select\n")
+    text.append(t("helpo.quick_select", lang) + "\n")
     text.append("L/T ", style=theme.accent)
-    text.append("language / theme\n")
+    text.append(t("helpo.lang_theme", lang) + "\n")
     text.append("Q ", style=theme.accent)
-    text.append("quit\n")
-    return Panel(text, title=t("menu.about", lang), box=ROUNDED, border_style=theme.primary)
+    text.append(t("helpo.quit", lang) + "\n")
+    return Panel(text, title=t("helpo.title", lang), box=ROUNDED, border_style=theme.primary)
 
 
 def stack(parts: Sequence[Text | Panel | Table]) -> Table:

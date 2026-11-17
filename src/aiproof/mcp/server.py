@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from aiproof import paths
+from aiproof import __version__, paths
 from aiproof.checks.base import CheckContext
 from aiproof.claims.extractor import extract_claims
 from aiproof.config import load_settings, merge_pinned, read_pinned
@@ -58,8 +58,12 @@ TOOLS: list[dict[str, Any]] = [
     },
     {
         "name": "aiproof_corrections_list",
-        "description": "List recorded corrections (advisory in this build).",
-        "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
+        "description": "List corrections recorded for this project (advisory).",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"cwd": {"type": "string"}},
+            "additionalProperties": False,
+        },
     },
 ]
 
@@ -93,7 +97,7 @@ def call_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
         settings = merge_pinned(load_settings(root), read_pinned(root))
         claims = extract_claims(str(args.get("text", "")))
         ctx = CheckContext(root=root, settings=settings, session="mcp", claims=claims)
-        decision = decide(ctx, agent_lang=settings.agent_message_language)
+        decision = decide(ctx, agent_lang=settings.agent_message_language, integrity=False)
         return _result(
             {
                 "ok": True,
@@ -117,9 +121,12 @@ def call_tool(name: str, args: dict[str, Any]) -> dict[str, Any]:
         )
         if session is None:
             return _result({"ok": False, "reason": "no sessions"})
-        return _result({"ok": True, "receipt": build_receipt(root, session)})
+        return _result({"ok": True, "receipt": build_receipt(root, session).as_dict()})
     if name == "aiproof_corrections_list":
-        return _result({"ok": True, "corrections": []})
+        from aiproof.learn.corrections import list_corrections
+
+        corrections = [c.as_dict() for c in list_corrections(root)]
+        return _result({"ok": True, "corrections": corrections})
     return {
         "content": [{"type": "text", "text": json.dumps({"ok": False, "reason": "unknown tool"})}],
         "isError": True,
@@ -136,7 +143,7 @@ def _handle(message: dict[str, Any]) -> dict[str, Any] | None:
             "result": {
                 "protocolVersion": PROTOCOL_VERSION,
                 "capabilities": {"tools": {}},
-                "serverInfo": {"name": "aiproof", "version": "0.1.0"},
+                "serverInfo": {"name": "aiproof", "version": __version__},
             },
         }
     if method == "tools/list":
@@ -145,7 +152,16 @@ def _handle(message: dict[str, Any]) -> dict[str, Any] | None:
         params = message.get("params", {})
         name = str(params.get("name", ""))
         args = params.get("arguments", {}) if isinstance(params.get("arguments"), dict) else {}
-        return {"jsonrpc": "2.0", "id": msg_id, "result": call_tool(name, args)}
+        try:
+            result = call_tool(name, args)
+        except Exception as exc:  # never let one call kill the stdio loop
+            result = {
+                "content": [
+                    {"type": "text", "text": json.dumps({"ok": False, "reason": str(exc)})}
+                ],
+                "isError": True,
+            }
+        return {"jsonrpc": "2.0", "id": msg_id, "result": result}
     if method in ("notifications/initialized", "notifications/cancelled"):
         return None
     if msg_id is None:

@@ -119,6 +119,11 @@ def handle(event_name: str) -> int:
             },
             session=event.session_id,
         )
+        store.append(
+            "file_snapshot",
+            {"files": gitutil.snapshot_files(root)},
+            session=event.session_id,
+        )
         return 0
 
     if event_name == "Stop":

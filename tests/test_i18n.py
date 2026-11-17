@@ -24,6 +24,27 @@ def test_placeholder_parity_en_ru() -> None:
             assert set(PLACEHOLDER.findall(value)) == set(PLACEHOLDER.findall(ru[key])), key
 
 
+def test_placeholder_parity_all_catalogs() -> None:
+    """A wrong placeholder in any language is always a bug."""
+    en = _load("en")
+    for code in available():
+        data = _load(code)
+        for key, value in data.items():
+            if key in en:
+                assert set(PLACEHOLDER.findall(en[key])) == set(PLACEHOLDER.findall(value)), (
+                    code,
+                    key,
+                )
+
+
+def test_all_catalogs_cover_ui_keys() -> None:
+    """Every shipped catalog covers the full English key set (no silent fallbacks)."""
+    en = set(_load("en"))
+    for code in available():
+        missing = en - set(_load(code))
+        assert not missing, f"{code} is missing keys: {sorted(missing)}"
+
+
 def test_fallback_to_english() -> None:
     assert t("tagline", "de")  # de is a draft but tagline exists
     assert t("menu.doctor", "zz")  # unknown -> English

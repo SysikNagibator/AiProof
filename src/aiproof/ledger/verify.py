@@ -32,29 +32,33 @@ def verify(root: Path) -> VerifyResult:
     prev = chain.GENESIS
     checked = 0
     head = chain.GENESIS
-    for _segment, _lineno, record in store.read_records(root):
-        expected_prev = record.get("prev")
-        if expected_prev != prev:
-            return VerifyResult(
-                False,
-                checked,
-                len(segments),
-                head,
-                record.get("seq"),
-                "prev hash does not match the previous record",
-            )
-        meta = chain.record_meta(record)
-        recomputed = chain.record_hash(prev, meta)
-        if recomputed != record.get("hash"):
-            return VerifyResult(
-                False,
-                checked,
-                len(segments),
-                head,
-                record.get("seq"),
-                "record hash mismatch (content altered)",
-            )
-        prev = recomputed
-        head = recomputed
-        checked += 1
+    try:
+        records = store.read_records(root)
+        for _segment, _lineno, record in records:
+            expected_prev = record.get("prev")
+            if expected_prev != prev:
+                return VerifyResult(
+                    False,
+                    checked,
+                    len(segments),
+                    head,
+                    record.get("seq"),
+                    "prev hash does not match the previous record",
+                )
+            meta = chain.record_meta(record)
+            recomputed = chain.record_hash(prev, meta)
+            if recomputed != record.get("hash"):
+                return VerifyResult(
+                    False,
+                    checked,
+                    len(segments),
+                    head,
+                    record.get("seq"),
+                    "record hash mismatch (content altered)",
+                )
+            prev = recomputed
+            head = recomputed
+            checked += 1
+    except store.MalformedLedgerError as exc:
+        return VerifyResult(False, checked, len(segments), head, None, str(exc))
     return VerifyResult(True, checked, len(segments), head)

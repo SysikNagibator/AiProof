@@ -25,6 +25,10 @@ def _claim_detail(ctx: CheckContext, decision: GateDecision) -> str:
 
 def build(decision: GateDecision, ctx: CheckContext, lang: str = "en") -> str:
     """Compose a specific block message from a decision, in *lang*."""
+    if lang == "auto":
+        from aiproof.i18n import detect_language
+
+        lang = detect_language()
     lines: list[str] = [t("gate.header", lang)]
 
     for finding in decision.findings:

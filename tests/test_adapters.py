@@ -67,6 +67,24 @@ def test_mcp_adapter_writes_entry(tmp_path: Path) -> None:
     assert data["mcpServers"]["aiproof"]["command"] == "aiproof"
 
 
+def test_mcp_adapter_tolerates_malformed_config(tmp_path: Path) -> None:
+    """A corrupt ``.mcp.json`` must not crash install/uninstall."""
+    (tmp_path / ".mcp.json").write_text("{not valid json", encoding="utf-8")
+    McpAdapter().install(tmp_path, dry_run=True)
+    McpAdapter().uninstall(tmp_path, dry_run=True)
+    McpAdapter().install(tmp_path)
+    data = json.loads((tmp_path / ".mcp.json").read_text())
+    assert "aiproof" in data["mcpServers"]
+
+
+def test_mcp_adapter_tolerates_non_object_config(tmp_path: Path) -> None:
+    (tmp_path / ".mcp.json").write_text("[]", encoding="utf-8")
+    McpAdapter().uninstall(tmp_path)  # must not raise
+    McpAdapter().install(tmp_path)
+    data = json.loads((tmp_path / ".mcp.json").read_text())
+    assert "aiproof" in data["mcpServers"]
+
+
 def test_mcp_snippet_shape() -> None:
     snippet = mcp_snippet()
     assert "mcpServers" in snippet

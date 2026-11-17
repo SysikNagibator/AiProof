@@ -57,7 +57,9 @@ user's sense of "done". This document describes how the pieces fit together.
 1. The agent fires a lifecycle event. An adapter normalizes the payload into an
    `Event` (`adapters/base.py`).
 2. **SessionStart** records the start commit, pin status and a hash snapshot of every
-   protected file. This is the baseline for tamper detection.
+   protected file (`session_start`), plus a bounded content-hash snapshot of the
+   working-tree changes (`file_snapshot`). These are the baselines for tamper and
+   file-change detection.
 3. **PreToolUse** runs the tamper guard: writes/edits to protected paths (agent
    config, MCP config, `.aiproof/`, `.git/hooks/`) are *denied*. The attempt is
    logged as `tamper_attempt`.

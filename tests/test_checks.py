@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from aiproof.bench.harness import make_ctx, make_repo, manual
+from aiproof.bench.harness import make_ctx, make_repo, manual, rec
 from aiproof.checks import commit_exists, file_changed, tests_ran
 from aiproof.claims.model import ClaimType
 
@@ -50,4 +50,43 @@ def test_file_changed_real_change(tmp_path: Path) -> None:
     (root / "config.py").write_text("V = 2\n", encoding="utf-8")
     claim = manual(ClaimType.FILE_CHANGED, "updated config.py", {"files": ["config.py"]})
     ctx = make_ctx(root, claims=[claim], start_commit=head)
+    assert file_changed.check(claim, ctx).verdict == "pass"
+
+
+def test_file_changed_snapshot_blocks_dirty_but_unchanged(tmp_path: Path) -> None:
+    """A file already dirty at session start must not pass if left untouched.
+
+    Without the session snapshot the ``start_commit`` fallback would see the file
+    differs from HEAD and wrongly pass the claim.
+    """
+    from aiproof import gitutil
+
+    root, head = make_repo(tmp_path, {"config.py": "V = 1\n"})
+    (root / "dirty.py").write_text("DIRTY = 1\n", encoding="utf-8")
+    snapshot = gitutil.snapshot_files(root)
+    assert "dirty.py" in snapshot
+    claim = manual(ClaimType.FILE_CHANGED, "updated dirty.py", {"files": ["dirty.py"]})
+    ctx = make_ctx(
+        root,
+        claims=[claim],
+        start_commit=head,
+        records=[rec("file_snapshot", {"files": snapshot})],
+    )
+    assert file_changed.check(claim, ctx).verdict == "fail"
+
+
+def test_file_changed_snapshot_passes_real_change(tmp_path: Path) -> None:
+    from aiproof import gitutil
+
+    root, head = make_repo(tmp_path, {"config.py": "V = 1\n"})
+    (root / "dirty.py").write_text("DIRTY = 1\n", encoding="utf-8")
+    snapshot = gitutil.snapshot_files(root)
+    (root / "dirty.py").write_text("DIRTY = 2\n", encoding="utf-8")
+    claim = manual(ClaimType.FILE_CHANGED, "updated dirty.py", {"files": ["dirty.py"]})
+    ctx = make_ctx(
+        root,
+        claims=[claim],
+        start_commit=head,
+        records=[rec("file_snapshot", {"files": snapshot})],
+    )
     assert file_changed.check(claim, ctx).verdict == "pass"

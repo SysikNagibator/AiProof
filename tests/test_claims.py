@@ -50,3 +50,15 @@ def test_chinese_tests_pass() -> None:
 
 def test_hedged_english_phrase_no_claim() -> None:
     assert extract_claims("the tests should pass") == []
+
+
+def test_many_repeated_claims_scale_linearly() -> None:
+    """Regression: dedupe used to be O(n^2) and took seconds on long input."""
+    import time
+
+    text = "тесты проходят " * 10000
+    start = time.perf_counter()
+    claims = extract_claims(text)
+    elapsed = time.perf_counter() - start
+    assert len(claims) == 10000
+    assert elapsed < 2.0, f"extraction too slow: {elapsed:.2f}s"

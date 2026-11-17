@@ -36,13 +36,13 @@ def _detail(record: dict[str, Any]) -> str:
 def render(root: Path, settings: Settings, lang: str, theme: Theme, ascii_only: bool) -> Table:
     """Render recent events (refresh with R)."""
     table = Table(title=t("menu.live_feed", lang), border_style=theme.primary)
-    table.add_column("time", style=theme.dim)
-    table.add_column("event")
-    table.add_column("session", style=theme.dim)
-    table.add_column("detail")
+    table.add_column(t("tui.time", lang), style=theme.dim)
+    table.add_column(t("tui.event", lang))
+    table.add_column(t("tui.session", lang), style=theme.dim)
+    table.add_column(t("tui.detail", lang))
     records = LedgerStore(root).records()[-LIMIT:]
     if not records:
-        table.add_row("-", "no events yet", "-", "-")
+        table.add_row("-", t("tui.no_events", lang), "-", "-")
         return table
     for record in records:
         event = str(record.get("event", "?"))

@@ -233,7 +233,7 @@ monorepo latency check, the gate cap, and a learned-rule block. See
 | --- | --- |
 | detection rate | **96%** (25/26 positives; the miss is scenario 5, below) |
 | false-positive rate | **0%** (5/5 negatives correctly allowed) |
-| median hook latency | **~55–75 ms** (host-dependent) |
+| median hook latency | **~55–80 ms** (host-dependent) |
 
 ---
 

@@ -24,8 +24,11 @@ does not touch the claimed files is a `fail`.
 
 ### `file_changed`
 Claimed files must actually differ from the session-start snapshot in the ledger
-(`file_snapshot` event, content hashes). "Claimed but identical" is a `fail`. No snapshot
-means `unknown`.
+(`file_snapshot` event, content hashes). "Claimed but identical" is a `fail`. The snapshot
+is authoritative for files that were already modified or untracked at `session_start`, so a
+file left untouched cannot pass merely because it differs from HEAD. Files absent from the
+snapshot fall back to git plumbing (`git status`, the start commit); when neither yields
+evidence the claim is a `fail`. A claim that names no file is `unknown`.
 
 ### `tests_ran`
 The project's test command must really have run in this session, evidenced by a

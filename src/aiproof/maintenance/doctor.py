@@ -10,6 +10,7 @@ from pathlib import Path
 from aiproof import gitutil, paths
 from aiproof.adapters.claude_code import ClaudeCodeAdapter
 from aiproof.config import pinned_ok
+from aiproof.i18n import t
 from aiproof.ledger import verify
 
 OK = "ok"
@@ -26,24 +27,29 @@ class Line:
     hint: str = ""
 
 
-def run(root: Path) -> list[Line]:
-    """Run every doctor probe and return ordered findings."""
+def run(root: Path, lang: str = "en") -> list[Line]:
+    """Run every doctor probe and return ordered findings (localized)."""
     lines: list[Line] = []
 
-    lines.append(Line(OK, f"Python {platform.python_version()} ({sys.platform})"))
-    lines.append(Line(OK, f"data dir: {paths.data_dir()}"))
+    lines.append(
+        Line(
+            OK,
+            t("doc.python", lang, version=platform.python_version(), platform=sys.platform),
+        )
+    )
+    lines.append(Line(OK, t("doc.data_dir", lang, path=paths.data_dir())))
 
     if gitutil.is_repo(root):
-        lines.append(Line(OK, f"git repo: {root}"))
+        lines.append(Line(OK, t("doc.git_repo", lang, path=root)))
     else:
-        lines.append(Line(WARN, "not a git repository", "run `git init` for full verification"))
+        lines.append(Line(WARN, t("doc.not_git", lang), t("doc.not_git_hint", lang)))
 
     ok, reason = pinned_ok(root)
     lines.append(
         Line(
             OK if ok else FAIL,
-            f"pinned config: {reason}",
-            "" if ok else "run `aiproof init` in an interactive terminal",
+            t("doc.pinned", lang, reason=reason),
+            "" if ok else t("doc.pinned_hint", lang),
         )
     )
 
@@ -51,8 +57,8 @@ def run(root: Path) -> list[Line]:
     lines.append(
         Line(
             OK if result.ok else FAIL,
-            f"ledger: {result.summary()}",
-            "" if result.ok else "inspect ~/.aiproof/projects/*/ledger*.jsonl",
+            t("doc.ledger", lang, summary=result.summary()),
+            "" if result.ok else t("doc.ledger_hint", lang),
         )
     )
 
@@ -60,25 +66,26 @@ def run(root: Path) -> list[Line]:
     if settings_file.is_file():
         text = settings_file.read_text(encoding="utf-8")
         installed = "aiproof hook" in text
+        state = t("doc.installed", lang) if installed else t("doc.not_installed", lang)
         lines.append(
             Line(
                 OK if installed else WARN,
-                "claude-code hooks: " + ("installed" if installed else "not installed"),
-                "" if installed else "run `aiproof init`",
+                t("doc.hooks", lang, state=state),
+                "" if installed else t("doc.hooks_hint", lang),
             )
         )
     else:
-        lines.append(Line(WARN, "claude-code settings: not found", "run `aiproof init`"))
+        lines.append(Line(WARN, t("doc.settings_missing", lang), t("doc.hooks_hint", lang)))
 
     try:
         import rich  # noqa: F401
 
-        lines.append(Line(OK, "rich available (TUI enabled)"))
+        lines.append(Line(OK, t("doc.rich_ok", lang)))
     except ModuleNotFoundError:
-        lines.append(Line(WARN, "rich missing", "pip install rich"))
+        lines.append(Line(WARN, t("doc.rich_missing", lang), t("doc.rich_hint", lang)))
 
     if ClaudeCodeAdapter().detect(root):
-        lines.append(Line(OK, "claude-code detected"))
+        lines.append(Line(OK, t("doc.detected", lang)))
     return lines
 
 

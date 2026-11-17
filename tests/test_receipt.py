@@ -58,6 +58,20 @@ def test_receipt_html_is_self_contained(tmp_path: Path) -> None:
     assert "AiProof" in html
 
 
+def test_receipt_md_is_localized(tmp_path: Path) -> None:
+    session = _seed(tmp_path)
+    md = render_md(build_receipt(tmp_path, session), lang="ru")
+    assert "Квитанция AiProof" in md
+    assert "цепочка проверена" in md
+
+
+def test_receipt_html_lang_attribute(tmp_path: Path) -> None:
+    session = _seed(tmp_path)
+    html = render_html(build_receipt(tmp_path, session), lang="de")
+    assert '<html lang="de">' in html
+    assert "AiProof-Beleg" in html
+
+
 def test_receipt_detects_tamper(tmp_path: Path) -> None:
     session = _seed(tmp_path)
     from aiproof import paths

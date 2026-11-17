@@ -96,6 +96,28 @@ def changed_files(root: Path) -> set[str]:
     return files
 
 
+def tracked_changed_files(root: Path) -> set[str]:
+    """Return tracked files that are staged/unstaged modified, added or deleted.
+
+    Untracked (``??``) and ignored (``!!``) entries are excluded: without a session
+    baseline a freshly created protected file (e.g. written by ``aiproof init``) must
+    not be mistaken for an in-session modification.
+    """
+    files: set[str] = set()
+    _, out, _ = run_git(root, ["status", "--porcelain"])
+    for line in out.splitlines():
+        if len(line) < 4:
+            continue
+        code = line[:2]
+        if code.strip() in {"??", "!!"}:
+            continue
+        rest = line[3:]
+        if " -> " in rest:
+            rest = rest.split(" -> ", 1)[1]
+        files.add(rest.strip().strip('"'))
+    return files
+
+
 def file_content(root: Path, path: str, rev: str | None = None) -> str | None:
     """Return a file's content at *rev* (or HEAD when None); None when absent."""
     target = f"{rev}:{path}" if rev is not None else f"HEAD:{path}"
@@ -115,6 +137,72 @@ def file_sha256(path: Path) -> str:
         return digest.hexdigest()
     except OSError:
         return ""
+
+
+# Session-start snapshot bounds: keep SessionStart cheap and the ledger small.
+# ``docs/ARCHITECTURE.md`` requires that a hook never scans the whole repository,
+# so inside a work tree only working-tree changes are snapshotted.
+SNAPSHOT_MAX_FILES = 1000
+SNAPSHOT_MAX_BYTES = 2 * 1024 * 1024
+_IGNORED_DIRS = frozenset(
+    {
+        ".git",
+        ".hg",
+        ".svn",
+        ".aiproof",
+        "node_modules",
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".pytest_cache",
+        ".tox",
+        "dist",
+        "build",
+        ".idea",
+        ".vscode",
+    }
+)
+
+
+def candidate_files(root: Path, *, limit: int = SNAPSHOT_MAX_FILES) -> list[str]:
+    """Return files worth snapshotting at session start, bounded by *limit*.
+
+    In a work tree this is the set of working-tree changes (modified, staged,
+    untracked), so no full repository scan is performed. Outside a work tree a
+    bounded, ignore-aware walk is used instead.
+    """
+    if is_repo(root):
+        return sorted(changed_files(root))[:limit]
+    found: list[str] = []
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames[:] = sorted(d for d in dirnames if d not in _IGNORED_DIRS)
+        for name in sorted(filenames):
+            try:
+                rel = (Path(dirpath) / name).relative_to(root).as_posix()
+            except ValueError:  # pragma: no cover - defensive
+                continue
+            found.append(rel)
+            if len(found) >= limit:
+                return found
+    return found
+
+
+def snapshot_files(root: Path, *, limit: int = SNAPSHOT_MAX_FILES) -> dict[str, str]:
+    """Return ``{posix path: sha256}`` for the session-start candidate files."""
+    snapshot: dict[str, str] = {}
+    for rel in candidate_files(root, limit=limit):
+        path = root / rel
+        try:
+            if not path.is_file() or path.stat().st_size > SNAPSHOT_MAX_BYTES:
+                continue
+        except OSError:  # pragma: no cover - unreadable
+            continue
+        digest = file_sha256(path)
+        if digest:
+            snapshot[rel] = digest
+    return snapshot
 
 
 @dataclass(slots=True)

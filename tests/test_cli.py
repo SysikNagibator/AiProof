@@ -179,3 +179,27 @@ def test_receipt_alias(
     _isolate(tmp_path, monkeypatch)
     assert main(["receipt"]) == 1
     assert "no sessions" in capsys.readouterr().out
+
+
+def test_run_strips_double_dash_and_succeeds(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression: `aiproof run -- <cmd>` must not pass the literal `--` to exec()."""
+    _isolate(tmp_path, monkeypatch)
+    assert main(["run", "--", "echo", "hi"]) == 0
+    assert "hi" in capsys.readouterr().out
+
+
+def test_run_missing_executable_returns_127(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _isolate(tmp_path, monkeypatch)
+    assert main(["run", "--", "definitely-not-a-real-cmd-xyz"]) == 127
+
+
+def test_run_without_command_returns_2(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _isolate(tmp_path, monkeypatch)
+    assert main(["run"]) == 2
+    assert "usage:" in capsys.readouterr().err

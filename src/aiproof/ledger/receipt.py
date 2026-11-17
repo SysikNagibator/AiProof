@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from aiproof.i18n import t
 from aiproof.ledger import chain, verify
 from aiproof.ledger.store import LedgerStore
 
@@ -76,18 +77,20 @@ def render_json(receipt: Receipt) -> str:
     return json.dumps(receipt.as_dict(), indent=2, sort_keys=True, ensure_ascii=False)
 
 
-def render_md(receipt: Receipt) -> str:
-    """Render a receipt as Markdown."""
+def render_md(receipt: Receipt, lang: str = "en") -> str:
+    """Render a receipt as Markdown (localized)."""
+    verified = t("receipt.yes", lang) if receipt.verified else t("receipt.no", lang)
     lines = [
-        f"# AiProof receipt — session `{receipt.session}`",
+        f"# {t('receipt.title', lang)} — {t('receipt.session', lang)} `{receipt.session}`",
         "",
-        f"- project: `{receipt.project}`",
-        f"- chain verified: {'yes' if receipt.verified else 'NO'}",
-        f"- chain head: `{receipt.chain_head[:16]}…`",
+        f"- {t('receipt.project', lang)}: `{receipt.project}`",
+        f"- {t('receipt.chain_verified', lang)}: {verified}",
+        f"- {t('receipt.chain_head', lang)}: `{receipt.chain_head[:16]}...`",
         "",
-        "## Claims vs evidence",
+        f"## {t('receipt.claims_title', lang)}",
         "",
-        "| claim | verdict | evidence |",
+        f"| {t('receipt.col_claim', lang)} | {t('receipt.col_verdict', lang)} "
+        f"| {t('receipt.col_evidence', lang)} |",
         "| --- | --- | --- |",
     ]
     for result in receipt.results:
@@ -97,20 +100,20 @@ def render_md(receipt: Receipt) -> str:
             f"| {result.get('verdict', '?')} | {result.get('reason', '')} |"
         )
     if receipt.findings:
-        lines += ["", "## Integrity findings", ""]
+        lines += ["", f"## {t('receipt.integrity_title', lang)}", ""]
         for finding in receipt.findings:
             lines.append(
                 f"- **{finding.get('check')}** ({finding.get('verdict')}): {finding.get('reason')}"
             )
     if receipt.tamper:
-        lines += ["", "## Tamper attempts", ""]
+        lines += ["", f"## {t('receipt.tamper_title', lang)}", ""]
         for attempt in receipt.tamper:
             lines.append(f"- {attempt.get('tool')}: {attempt.get('reason')}")
     return "\n".join(lines) + "\n"
 
 
-def render_html(receipt: Receipt) -> str:
-    """Render a self-contained, printable, dark/light-aware HTML receipt."""
+def render_html(receipt: Receipt, lang: str = "en") -> str:
+    """Render a self-contained, printable, dark/light-aware HTML receipt (localized)."""
     rows = []
     for result in receipt.results:
         claim = result.get("claim", {})
@@ -127,10 +130,12 @@ def render_html(receipt: Receipt) -> str:
         f"{html.escape(str(f.get('reason')))}</li>"
         for f in receipt.findings
     )
-    badge = "✅ verified" if receipt.verified else "❌ chain broken"
+    badge = (
+        t("receipt.badge_verified", lang) if receipt.verified else t("receipt.badge_broken", lang)
+    )
     return f"""<!doctype html>
-<html lang="en"><head><meta charset="utf-8">
-<title>AiProof receipt</title>
+<html lang="{html.escape(lang)}"><head><meta charset="utf-8">
+<title>{html.escape(t("receipt.title", lang))}</title>
 <style>
  :root {{ color-scheme: light dark; }}
  body {{ font: 15px/1.5 system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }}
@@ -141,12 +146,12 @@ def render_html(receipt: Receipt) -> str:
  footer {{ color: #888; font-size: .85rem; margin-top: 2rem; }}
 </style></head>
 <body>
-<h1>AiProof receipt <small>by SYSIK</small></h1>
-<p>session <code>{html.escape(receipt.session)}</code> · {badge} ·
-head <code>{html.escape(receipt.chain_head[:16])}</code></p>
-<table><thead><tr><th>claim</th><th>verdict</th><th>evidence</th></tr></thead>
+<h1>{html.escape(t("receipt.title", lang))} <small>{html.escape(t("receipt.subtitle", lang))}</small></h1>
+<p>{html.escape(t("receipt.session", lang))} <code>{html.escape(receipt.session)}</code> ·
+{badge} · {html.escape(t("receipt.chain_head", lang))} <code>{html.escape(receipt.chain_head[:16])}</code></p>
+<table><thead><tr><th>{html.escape(t("receipt.col_claim", lang))}</th><th>{html.escape(t("receipt.col_verdict", lang))}</th><th>{html.escape(t("receipt.col_evidence", lang))}</th></tr></thead>
 <tbody>{"".join(rows)}</tbody></table>
-{"<h2>Integrity findings</h2><ul>" + findings + "</ul>" if findings else ""}
-<footer>Generated locally by AiProof. No data left this machine.</footer>
+{"<h2>" + html.escape(t("receipt.integrity_title", lang)) + "</h2><ul>" + findings + "</ul>" if findings else ""}
+<footer>{html.escape(t("receipt.footer", lang))}</footer>
 </body></html>
 """

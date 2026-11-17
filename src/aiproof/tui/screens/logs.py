@@ -8,6 +8,7 @@ from rich.text import Text
 
 from aiproof import paths
 from aiproof.config import Settings
+from aiproof.i18n import t
 from aiproof.tui.theme import Theme
 
 
@@ -15,6 +16,6 @@ def render(root: Path, settings: Settings, lang: str, theme: Theme, ascii_only: 
     """Render the last lines of the AiProof log."""
     target = paths.log_path()
     if not target.is_file():
-        return Text("no logs yet", style=theme.dim)
+        return Text(t("tui.no_logs", lang), style=theme.dim)
     lines = target.read_text(encoding="utf-8").splitlines()[-40:]
-    return Text("\n".join(lines) or "no logs yet")
+    return Text("\n".join(lines) or t("tui.no_logs", lang))

@@ -38,7 +38,7 @@ Events AiProof registers (`src/aiproof/adapters/claude_code.py`):
 
 | event | matcher | purpose |
 | --- | --- | --- |
-| `SessionStart` | — | snapshot start commit + protected files; record `session_start` |
+| `SessionStart` | — | record `session_start` (start commit + protected files) and `file_snapshot` |
 | `PreToolUse` | `Bash\|Edit\|Write\|MultiEdit\|NotebookEdit` | tamper guard; record `tool_pre` |
 | `PostToolUse` | `Bash\|Edit\|Write\|MultiEdit\|NotebookEdit` | record `tool_post` (command + truncated output) |
 | `Stop` | — | extract claims, run checks, block on a false claim |

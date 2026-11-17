@@ -16,11 +16,15 @@ from aiproof.tui.theme import Theme
 def render(root: Path, settings: Settings, lang: str, theme: Theme, ascii_only: bool) -> Table:
     """Render the check toggles and strictness."""
     table = Table(title=t("menu.checks", lang), border_style=theme.primary)
-    table.add_column("check")
-    table.add_column("state")
-    table.add_row("strictness", Text(settings.strictness, style=theme.accent))
+    table.add_column(t("tui.check", lang))
+    table.add_column(t("tui.state", lang))
+    table.add_row(t("tui.strictness", lang), Text(settings.strictness, style=theme.accent))
     for name in ALL_CHECK_NAMES:
-        enabled = "✓ on" if name in settings.enabled_checks else "· off"
+        enabled = (
+            f"✓ {t('tui.on', lang)}"
+            if name in settings.enabled_checks
+            else f"· {t('tui.off', lang)}"
+        )
         style = theme.ok if name in settings.enabled_checks else theme.dim
         table.add_row(name, Text(enabled, style=style))
     return table

@@ -42,6 +42,46 @@ def test_unknown_tool_is_error() -> None:
     assert result["isError"] is True
 
 
+def test_receipt_tool_is_json_serializable(tmp_path: Path) -> None:
+    """Regression: the receipt tool used to return a non-serializable dataclass."""
+    from aiproof.ledger.store import LedgerStore
+
+    store = LedgerStore(tmp_path)
+    store.append("session_start", {"cwd": str(tmp_path)}, session="s1")
+    payload = _text(call_tool("aiproof_receipt", {"cwd": str(tmp_path)}))
+    assert payload["ok"] is True
+    assert payload["receipt"]["session"] == "s1"
+
+
+def test_receipt_tool_without_sessions(tmp_path: Path) -> None:
+    payload = _text(call_tool("aiproof_receipt", {"cwd": str(tmp_path)}))
+    assert payload["ok"] is False
+
+
+def test_corrections_tool_lists_recorded(tmp_path: Path) -> None:
+    from aiproof.learn.corrections import record_correction
+
+    record_correction(tmp_path, "always run the tests")
+    payload = _text(call_tool("aiproof_corrections_list", {"cwd": str(tmp_path)}))
+    assert payload["ok"] is True
+    assert any(c["text"] == "always run the tests" for c in payload["corrections"])
+
+
+def test_tool_call_never_kills_the_loop(monkeypatch) -> None:
+    """A raising tool must surface as isError, not break the JSON-RPC loop."""
+    import aiproof.mcp.server as server
+
+    def boom(_name: str, _args: dict) -> dict:
+        raise RuntimeError("kaboom")
+
+    monkeypatch.setattr(server, "call_tool", boom)
+    response = server._handle(
+        {"jsonrpc": "2.0", "id": 5, "method": "tools/call", "params": {"name": "x"}}
+    )
+    assert response is not None
+    assert response["result"]["isError"] is True
+
+
 def test_initialize_handshake() -> None:
     response = _handle({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
     assert response is not None

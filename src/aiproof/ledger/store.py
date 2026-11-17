@@ -16,6 +16,19 @@ ROTATE_BYTES = 8 * 1024 * 1024
 Redactor = Callable[[Any], Any]
 
 
+class MalformedLedgerError(ValueError):
+    """Raised when a ledger segment contains a line that is not a JSON object.
+
+    A malformed line is itself evidence of corruption or tampering, so callers
+    must surface it as a broken chain rather than crashing.
+    """
+
+    def __init__(self, segment: Path, lineno: int) -> None:
+        super().__init__(f"malformed ledger record at {segment.name}:{lineno}")
+        self.segment = segment
+        self.lineno = lineno
+
+
 def segment_paths(root: Path) -> list[Path]:
     """Return ledger segment files for a project in chain order (oldest first)."""
     directory = paths.project_dir(root)
@@ -38,17 +51,25 @@ def segment_paths(root: Path) -> list[Path]:
 
 
 def read_records(root: Path) -> Iterator[tuple[Path, int, dict[str, Any]]]:
-    """Yield ``(segment, 1-based line, record)`` across every segment in order."""
+    """Yield ``(segment, 1-based line, record)`` across every segment in order.
+
+    Raises :class:`MalformedLedgerError` on the first unparseable line so callers can
+    report a broken chain instead of crashing.
+    """
     for segment in segment_paths(root):
         try:
             text = segment.read_text(encoding="utf-8")
-        except OSError:  # pragma: no cover - unreadable segment
+        except (OSError, UnicodeDecodeError):  # pragma: no cover - unreadable segment
             continue
         for lineno, line in enumerate(text.splitlines(), start=1):
             stripped = line.strip()
             if not stripped:
                 continue
-            yield segment, lineno, chain.parse_line(stripped)
+            try:
+                record = chain.parse_line(stripped)
+            except ValueError as exc:
+                raise MalformedLedgerError(segment, lineno) from exc
+            yield segment, lineno, record
 
 
 def _tail(path: Path) -> tuple[str, int]:
@@ -56,13 +77,21 @@ def _tail(path: Path) -> tuple[str, int]:
     if not path.is_file() or path.stat().st_size == 0:
         return chain.GENESIS, 0
     last = ""
-    with path.open("r", encoding="utf-8") as handle:
-        for line in handle:
-            if line.strip():
-                last = line
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                if line.strip():
+                    last = line
+    except (OSError, UnicodeDecodeError):  # pragma: no cover - unreadable tail
+        return chain.GENESIS, 0
     if not last:
         return chain.GENESIS, 0
-    record = chain.parse_line(last)
+    try:
+        record = chain.parse_line(last)
+    except ValueError:
+        # Corrupt tail: restart the chain; verification will still flag the
+        # damaged segment upstream of the new record.
+        return chain.GENESIS, 0
     prev = record.get("hash")
     seq = record.get("seq")
     if not isinstance(prev, str) or not isinstance(seq, int):
@@ -152,18 +181,28 @@ class LedgerStore:
         return prev
 
     def records(self, *, session: str | None = None) -> list[dict[str, Any]]:
-        """Return every record, optionally filtered by session id."""
+        """Return every record, optionally filtered by session id.
+
+        Best-effort: stops at the first malformed line, returning the records
+        read so far (use :func:`aiproof.ledger.verify.verify` for integrity).
+        """
         out: list[dict[str, Any]] = []
-        for _segment, _lineno, record in read_records(self.root):
-            if session is None or record.get("session") == session:
-                out.append(record)
+        try:
+            for _segment, _lineno, record in read_records(self.root):
+                if session is None or record.get("session") == session:
+                    out.append(record)
+        except MalformedLedgerError:
+            pass
         return out
 
     def last_session(self) -> str | None:
         """Return the session id of the most recent record."""
         last: str | None = None
-        for _segment, _lineno, record in read_records(self.root):
-            sid = record.get("session")
-            if isinstance(sid, str):
-                last = sid
+        try:
+            for _segment, _lineno, record in read_records(self.root):
+                sid = record.get("session")
+                if isinstance(sid, str):
+                    last = sid
+        except MalformedLedgerError:
+            pass
         return last

@@ -23,6 +23,17 @@ MCP_PRESETS: dict[str, str] = {
 SERVER_NAME = "aiproof"
 
 
+def _read_json_object(path: Path) -> dict[str, Any]:
+    """Read *path* as a JSON object; return ``{}`` when missing, invalid or not an object."""
+    if not path.is_file():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
 def mcp_server_entry() -> dict[str, Any]:
     """Return the standard stdio MCP server entry for AiProof."""
     return {"command": "aiproof", "args": ["mcp"]}
@@ -47,8 +58,7 @@ class McpAdapter(Adapter):
         """Write/merge a project-level ``.mcp.json``."""
         path = root / ".mcp.json"
         result = InstallResult()
-        raw = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
-        data: dict[str, Any] = raw if isinstance(raw, dict) else {}
+        data = _read_json_object(path)
         servers = data.get("mcpServers")
         if not isinstance(servers, dict):
             servers = {}
@@ -67,7 +77,7 @@ class McpAdapter(Adapter):
         result = InstallResult()
         if not path.is_file():
             return result
-        data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+        data = _read_json_object(path)
         servers = data.get("mcpServers", {})
         if isinstance(servers, dict):
             servers.pop(SERVER_NAME, None)

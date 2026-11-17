@@ -148,12 +148,13 @@ def cmd_show(args: argparse.Namespace) -> int:
         return 1
     receipt = build_receipt(root, session)
     fmt = args.format
+    lang = detect_language()
     if fmt == "json":
         _emit(render_json(receipt))
     elif fmt == "html":
-        _emit(render_html(receipt))
+        _emit(render_html(receipt, lang=lang))
     else:
-        _emit(render_md(receipt))
+        _emit(render_md(receipt, lang=lang))
     return 0
 
 
@@ -177,7 +178,7 @@ def cmd_ledger(args: argparse.Namespace) -> int:
 
 def cmd_doctor(args: argparse.Namespace) -> int:
     root = _root()
-    lines = doctor.run(root)
+    lines = doctor.run(root, detect_language())
     if args.json:
         _json(doctor.as_dict(lines))
         return 1 if doctor.has_failures(lines) else 0
@@ -267,7 +268,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
     settings = merge_pinned(load_settings(root), read_pinned(root))
     claims = extract_claims(args.text)
     ctx = CheckContext(root=root, settings=settings, session="cli", claims=claims)
-    decision = decide(ctx, agent_lang=settings.agent_message_language)
+    decision = decide(ctx, agent_lang=settings.agent_message_language, integrity=False)
     if args.json:
         _json(decision.as_dict())
         return 0
@@ -659,6 +660,7 @@ def cmd_setup(args: argparse.Namespace) -> int:
     decision = decide(
         CheckContext(root=root, settings=settings, session="setup", claims=claims),
         agent_lang=settings.agent_message_language,
+        integrity=False,
     )
     _emit(
         "self-test: false 'all tests pass' -> "
@@ -779,91 +781,95 @@ def _set_global(key: str, value: str) -> None:
 # --------------------------------------------------------------------------- #
 # argument parsing
 # --------------------------------------------------------------------------- #
-def build_parser() -> argparse.ArgumentParser:
-    """Build the full argparse tree."""
-    parser = argparse.ArgumentParser(prog="aiproof", description="AiProof by SYSIK")
+def build_parser(lang: str | None = None) -> argparse.ArgumentParser:
+    """Build the full argparse tree (help text localized via i18n)."""
+
+    def h(key: str) -> str:
+        return t(f"help.{key}", lang)
+
+    parser = argparse.ArgumentParser(prog="aiproof", description=h("description"))
     parser.add_argument("--version", action="version", version=version_string())
-    parser.add_argument("--json", action="store_true", help="machine-readable output")
-    parser.add_argument("--lang", choices=KNOWN_LANGS, help="force UI language for this run")
+    parser.add_argument("--json", action="store_true", help=h("json"))
+    parser.add_argument("--lang", choices=KNOWN_LANGS, help=h("lang"))
     subs = parser.add_subparsers(dest="command")
 
-    subs.add_parser("version", help="print version").set_defaults(func=cmd_version)
-    subs.add_parser("about", help="about AiProof").set_defaults(func=cmd_about)
+    subs.add_parser("version", help=h("version")).set_defaults(func=cmd_version)
+    subs.add_parser("about", help=h("about")).set_defaults(func=cmd_about)
 
-    p_init = subs.add_parser("init", help="install hooks and write pins")
+    p_init = subs.add_parser("init", help=h("init"))
     p_init.add_argument("--dry-run", action="store_true")
     p_init.set_defaults(func=cmd_init)
 
-    p_un = subs.add_parser("uninstall", help="remove AiProof hooks")
+    p_un = subs.add_parser("uninstall", help=h("uninstall"))
     p_un.add_argument("--dry-run", action="store_true")
     p_un.set_defaults(func=cmd_uninstall)
 
-    subs.add_parser("status", help="show armed state").set_defaults(func=cmd_status)
-    subs.add_parser("sessions", help="list sessions").set_defaults(func=cmd_sessions)
+    subs.add_parser("status", help=h("status")).set_defaults(func=cmd_status)
+    subs.add_parser("sessions", help=h("sessions")).set_defaults(func=cmd_sessions)
 
-    p_show = subs.add_parser("show", help="show a session receipt")
+    p_show = subs.add_parser("show", help=h("show"))
     p_show.add_argument("session", nargs="?")
     p_show.add_argument("--format", choices=("json", "html", "md"), default="md")
     p_show.set_defaults(func=cmd_show)
 
-    p_rep = subs.add_parser("report", help="alias for show")
+    p_rep = subs.add_parser("report", help=h("report"))
     p_rep.add_argument("session", nargs="?")
     p_rep.add_argument("--format", choices=("json", "html", "md"), default="md")
     p_rep.set_defaults(func=cmd_report)
 
-    ledger = subs.add_parser("ledger", help="ledger operations")
+    ledger = subs.add_parser("ledger", help=h("ledger"))
     ledger_subs = ledger.add_subparsers(dest="ledger_cmd")
-    ledger_subs.add_parser("verify", help="verify the hash chain").set_defaults(func=cmd_ledger)
+    ledger_subs.add_parser("verify", help=h("ledger_verify")).set_defaults(func=cmd_ledger)
     ledger.set_defaults(func=cmd_ledger)
 
-    subs.add_parser("doctor", help="run diagnostics").set_defaults(func=cmd_doctor)
+    subs.add_parser("doctor", help=h("doctor")).set_defaults(func=cmd_doctor)
 
-    p_bench = subs.add_parser("bench", help="run the benchmark")
+    p_bench = subs.add_parser("bench", help=h("bench"))
     p_bench.add_argument("--md", action="store_true")
     p_bench.set_defaults(func=cmd_bench)
 
-    p_scan = subs.add_parser("scan", help="scan for secrets")
+    p_scan = subs.add_parser("scan", help=h("scan"))
     p_scan.add_argument("--tree", action="store_true")
     p_scan.add_argument("--instructions", action="store_true")
     p_scan.add_argument("--histories", action="store_true")
     p_scan.set_defaults(func=cmd_scan)
 
-    p_verify = subs.add_parser("verify", help="verify claims text")
+    p_verify = subs.add_parser("verify", help=h("verify"))
     p_verify.add_argument("text")
     p_verify.set_defaults(func=cmd_verify)
 
-    subs.add_parser("pin", help="re-pin settings (human only)").set_defaults(func=cmd_pin)
+    subs.add_parser("pin", help=h("pin")).set_defaults(func=cmd_pin)
 
-    p_pause = subs.add_parser("pause", help="pause (human only)")
+    p_pause = subs.add_parser("pause", help=h("pause"))
     p_pause.add_argument("minutes", type=int, nargs="?", default=30)
     p_pause.set_defaults(func=cmd_pause)
 
-    subs.add_parser("resume", help="resume (human only)").set_defaults(func=cmd_resume)
+    subs.add_parser("resume", help=h("resume")).set_defaults(func=cmd_resume)
 
-    p_agents = subs.add_parser("agents", help="list supported agents/IDEs")
+    p_agents = subs.add_parser("agents", help=h("agents"))
     p_agents.set_defaults(func=cmd_agents)
 
-    p_lang = subs.add_parser("lang", help="get/set language")
+    p_lang = subs.add_parser("lang", help=h("lang_cmd"))
     p_lang.add_argument("code", nargs="?")
     p_lang.set_defaults(func=cmd_lang)
 
-    p_theme = subs.add_parser("theme", help="get/set theme")
+    p_theme = subs.add_parser("theme", help=h("theme"))
     p_theme.add_argument("name", nargs="?")
     p_theme.set_defaults(func=cmd_theme)
 
-    p_logs = subs.add_parser("logs", help="show AiProof logs")
+    p_logs = subs.add_parser("logs", help=h("logs"))
     p_logs.add_argument("--lines", type=int, default=40)
     p_logs.set_defaults(func=cmd_logs)
 
-    p_update = subs.add_parser("update", help="check for updates")
+    p_update = subs.add_parser("update", help=h("update"))
     p_update.add_argument("--check", action="store_true")
     p_update.set_defaults(func=cmd_update)
 
-    p_correct = subs.add_parser("correct", help="record a correction")
+    p_correct = subs.add_parser("correct", help=h("correct"))
     p_correct.add_argument("text")
     p_correct.set_defaults(func=cmd_correct)
 
-    p_learn = subs.add_parser("learn", help="corrections and executable rules")
+    p_learn = subs.add_parser("learn", help=h("learn"))
     p_learn.add_argument(
         "action",
         nargs="?",
@@ -875,48 +881,48 @@ def build_parser() -> argparse.ArgumentParser:
     p_learn.add_argument("--target", default="AGENTS.md")
     p_learn.set_defaults(func=cmd_learn)
 
-    p_checks = subs.add_parser("checks", help="list or change enabled checks")
+    p_checks = subs.add_parser("checks", help=h("checks"))
     p_checks.add_argument("strictness", nargs="?", choices=STRICTNESS_PRESETS)
     p_checks.add_argument("--enable", action="append", metavar="NAME")
     p_checks.add_argument("--disable", action="append", metavar="NAME")
     p_checks.set_defaults(func=cmd_checks)
 
-    p_watch = subs.add_parser("watch", help="stream ledger events")
+    p_watch = subs.add_parser("watch", help=h("watch"))
     p_watch.add_argument("--once", action="store_true")
     p_watch.add_argument("--lines", type=int, default=20)
     p_watch.set_defaults(func=cmd_watch)
 
-    p_setup = subs.add_parser("setup", help="setup wizard (detect, pin, self-test)")
+    p_setup = subs.add_parser("setup", help=h("setup"))
     p_setup.add_argument("--yes", action="store_true")
     p_setup.add_argument("--dry-run", action="store_true")
     p_setup.set_defaults(func=cmd_setup)
 
-    p_install = subs.add_parser("install", help="install agent/IDE integrations")
+    p_install = subs.add_parser("install", help=h("install"))
     p_install.add_argument("--ide")
     p_install.add_argument("--all", action="store_true")
     p_install.add_argument("--dry-run", action="store_true")
     p_install.add_argument("--list-ides", action="store_true")
     p_install.set_defaults(func=cmd_install)
 
-    subs.add_parser("off", help="uninstall hooks (human only)").set_defaults(func=cmd_off)
-    subs.add_parser("keys", help="keyboard mapping diagnostics").set_defaults(func=cmd_keys)
+    subs.add_parser("off", help=h("off")).set_defaults(func=cmd_off)
+    subs.add_parser("keys", help=h("keys")).set_defaults(func=cmd_keys)
 
-    p_receipt = subs.add_parser("receipt", help="alias for show")
+    p_receipt = subs.add_parser("receipt", help=h("receipt"))
     p_receipt.add_argument("session", nargs="?")
     p_receipt.add_argument("--format", choices=("json", "html", "md"), default="md")
     p_receipt.set_defaults(func=cmd_show)
 
-    p_run = subs.add_parser("run", help="wrap an agent command")
+    p_run = subs.add_parser("run", help=h("run"))
     p_run.add_argument("command", nargs=argparse.REMAINDER)
     p_run.set_defaults(func=cmd_run)
 
-    p_hook = subs.add_parser("hook", help="hook entrypoint (agents)")
+    p_hook = subs.add_parser("hook", help=h("hook"))
     p_hook.add_argument("event")
     p_hook.set_defaults(func=cmd_hook)
 
-    subs.add_parser("mcp", help="run the MCP server").set_defaults(func=cmd_mcp)
+    subs.add_parser("mcp", help=h("mcp")).set_defaults(func=cmd_mcp)
 
-    p_tui = subs.add_parser("tui", help="open the TUI")
+    p_tui = subs.add_parser("tui", help=h("tui"))
     p_tui.add_argument("--ascii", action="store_true")
     p_tui.add_argument("--no-anim", action="store_true")
     p_tui.set_defaults(func=cmd_tui)
@@ -930,13 +936,13 @@ def build_parser() -> argparse.ArgumentParser:
                 "--json",
                 action="store_true",
                 default=argparse.SUPPRESS,
-                help="machine-readable output",
+                help=h("json"),
             )
     ledger_subs.choices["verify"].add_argument(
         "--json",
         action="store_true",
         default=argparse.SUPPRESS,
-        help="machine-readable output",
+        help=h("json"),
     )
 
     return parser
@@ -944,8 +950,15 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     """Parse arguments and dispatch."""
+    raw = list(argv) if argv is not None else sys.argv[1:]
+    # Let ``--lang`` affect help text and output for this very run.
+    for index, token in enumerate(raw):
+        if token == "--lang" and index + 1 < len(raw):
+            os.environ["AIPROOF_LANG"] = raw[index + 1]
+        elif token.startswith("--lang="):
+            os.environ["AIPROOF_LANG"] = token.split("=", 1)[1]
     parser = build_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args(raw)
     if getattr(args, "lang", None):
         os.environ["AIPROOF_LANG"] = args.lang
     func = getattr(args, "func", None)

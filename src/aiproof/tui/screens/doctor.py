@@ -17,10 +17,10 @@ def render(root: Path, settings: Settings, lang: str, theme: Theme, ascii_only: 
     """Render the doctor probes."""
     table = Table(title=t("menu.doctor", lang), border_style=theme.primary)
     table.add_column("")
-    table.add_column("check")
-    table.add_column("hint")
+    table.add_column(t("tui.check", lang))
+    table.add_column(t("tui.hint", lang))
     marks = {"ok": ("✓", theme.ok), "warn": ("!", theme.warn), "fail": ("✗", theme.danger)}
-    for line in doctor.run(root):
+    for line in doctor.run(root, lang):
         mark, style = marks.get(line.level, ("?", theme.dim))
         table.add_row(Text(mark, style=style), line.label, line.hint)
     return table

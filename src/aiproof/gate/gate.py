@@ -46,8 +46,18 @@ class GateDecision:
         }
 
 
-def decide(ctx: CheckContext, *, agent_lang: str = "en", capped: bool = False) -> GateDecision:
-    """Run the relevant checks and decide whether to block the stop."""
+def decide(
+    ctx: CheckContext,
+    *,
+    agent_lang: str = "en",
+    capped: bool = False,
+    integrity: bool = True,
+) -> GateDecision:
+    """Run the relevant checks and decide whether to block the stop.
+
+    ``integrity=False`` runs only per-claim checks (used for ad-hoc self-checks that
+    have no session baseline, so whole-session integrity checks cannot decide).
+    """
     enabled = ctx.settings.enabled_checks
     strictness = ctx.settings.strictness
 
@@ -58,8 +68,9 @@ def decide(ctx: CheckContext, *, agent_lang: str = "en", capped: bool = False) -
                 results.append(module.check(claim, ctx))
 
     findings: list[IntegrityFinding] = []
-    for module in integrity_checks(enabled):
-        findings.extend(module.run(ctx))
+    if integrity:
+        for module in integrity_checks(enabled):
+            findings.extend(module.run(ctx))
 
     has_fail = any(r.verdict is Verdict.FAIL for r in results) or any(
         f.verdict is Verdict.FAIL for f in findings

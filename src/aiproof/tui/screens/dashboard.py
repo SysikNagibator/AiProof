@@ -30,13 +30,15 @@ def render(root: Path, settings: Settings, lang: str, theme: Theme, ascii_only: 
         if isinstance(sid, str) and sid not in sessions:
             sessions.append(sid)
 
-    grid.add_row("armed", Text(t("status.armed", lang), style=theme.ok))
-    grid.add_row("mode", settings.strictness)
+    grid.add_row(t("tui.armed", lang), Text(t("status.armed", lang), style=theme.ok))
+    grid.add_row(t("tui.mode", lang), settings.strictness)
     grid.add_row(
-        "pinned", Text("✓ ok" if ok else f"✗ {reason}", style=theme.ok if ok else theme.danger)
+        t("tui.pinned", lang),
+        Text("✓ ok" if ok else f"✗ {reason}", style=theme.ok if ok else theme.danger),
     )
-    grid.add_row("ledger", Text(v.summary(), style=theme.ok if v.ok else theme.danger))
-    grid.add_row("agents", ", ".join(a.id for a in detect_all(root)) or "none")
-    grid.add_row("sessions", t("count.sessions", lang, n=len(sessions)))
-    grid.add_row("data dir", str(root.parent if root.parent != root else root))
+    grid.add_row(t("tui.ledger", lang), Text(v.summary(), style=theme.ok if v.ok else theme.danger))
+    agents = ", ".join(a.id for a in detect_all(root)) or t("tui.none", lang)
+    grid.add_row(t("tui.agents", lang), agents)
+    grid.add_row(t("tui.sessions", lang), t("count.sessions", lang, n=len(sessions)))
+    grid.add_row(t("tui.data_dir", lang), str(root.parent if root.parent != root else root))
     return grid
