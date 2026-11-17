@@ -28,7 +28,7 @@ jobs:
         run: ruff format --check .
       - name: mypy (strict)
         run: mypy
-      - name: i18n catalog report (strict: en/ru complete)
+      - name: i18n catalog report (strict — en/ru complete)
         run: python tools/gen_catalog_report.py --strict
 
   test:
